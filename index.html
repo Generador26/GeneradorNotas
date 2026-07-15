@@ -1,0 +1,1677 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Nota de Venta - Industrias Gráfica Seven</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  :root{
+    --navy:#1b2a6b;
+    --navy2:#2b3a8f;
+    --teal:#22a3b8;
+    --teal2:#1687a8;
+    --ink:#16215c;
+    --red:#e3272f;
+    --paper:#ffffff;
+    --line:#7ea7c9;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    padding:24px;
+    background:linear-gradient(135deg,#0d1740,#1b2a6b 40%,#144a63 100%);
+    font-family:'Trebuchet MS','Segoe UI',Verdana,sans-serif;
+    color:var(--ink);
+    min-height:100vh;
+  }
+  .toolbar{
+    max-width:1200px;
+    margin:0 auto 18px;
+    display:flex;
+    gap:12px;
+    flex-wrap:wrap;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .toolbar .brand{
+    color:#dff3ff;
+    font-weight:700;
+    font-size:15px;
+    letter-spacing:.5px;
+    opacity:.85;
+  }
+  .btn-group{display:flex;gap:10px;flex-wrap:wrap;}
+  button{
+    cursor:pointer;
+    border:none;
+    border-radius:12px;
+    padding:11px 18px;
+    font-weight:700;
+    font-size:14px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    box-shadow:0 4px 10px rgba(0,0,0,.25);
+    transition:transform .12s ease, box-shadow .12s ease;
+  }
+  button:hover{transform:translateY(-2px);box-shadow:0 7px 16px rgba(0,0,0,.3);}
+  button:active{transform:translateY(0);}
+  .btn-teal{background:linear-gradient(135deg,var(--teal),var(--teal2));color:#fff;}
+  .btn-navy{background:linear-gradient(135deg,var(--navy2),var(--navy));color:#fff;}
+  .btn-red{background:linear-gradient(135deg,#ff5b5b,var(--red));color:#fff;}
+  .btn-ghost{background:#eef4fa;color:var(--navy);}
+
+  .sheet{
+    max-width:1200px;
+    margin:0 auto;
+    background:var(--paper);
+    border-radius:22px;
+    padding:26px 32px 32px;
+    box-shadow:0 20px 50px rgba(0,0,0,.35);
+    position:relative;
+    overflow:hidden;
+  }
+  .sheet::before{
+    content:"";
+    position:absolute;top:0;left:0;right:0;height:8px;
+    background:linear-gradient(90deg,var(--navy),var(--teal));
+  }
+
+  .top-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:20px;
+    flex-wrap:wrap;
+    margin-top:10px;
+  }
+  .logo-block{display:flex;align-items:center;gap:14px;}
+  .logo-text .g1{font-size:13px;letter-spacing:2px;color:var(--navy);font-weight:700;}
+  .logo-text .g2{font-size:46px;font-weight:900;color:#1687a8;letter-spacing:1px;line-height:1.05;}
+  .logo-text .g3{font-size:12px;color:#5a6b8c;font-style:italic;margin-top:2px;}
+
+  .title-pill{
+    background:linear-gradient(90deg,var(--navy),var(--teal2));
+    color:#fff;
+    font-weight:900;
+    font-size:30px;
+    letter-spacing:2px;
+    padding:12px 34px;
+    border-radius:40px;
+    box-shadow:0 6px 14px rgba(0,0,0,.25);
+    text-align:center;
+  }
+
+  .contact-block{font-size:12.5px;color:var(--navy);line-height:1.9;min-width:230px;}
+  .contact-block div{display:flex;align-items:center;gap:8px;}
+  .icn{
+    width:20px;height:20px;border-radius:50%;
+    background:linear-gradient(135deg,var(--navy2),var(--teal));
+    color:#fff;display:inline-flex;align-items:center;justify-content:center;
+    font-size:11px;flex:0 0 auto;
+  }
+
+  .meta-row{
+    display:flex;justify-content:space-between;align-items:center;
+    margin:16px 0 6px;flex-wrap:wrap;gap:14px;
+  }
+  .note-number{
+    color:var(--red);font-weight:900;font-size:22px;letter-spacing:1px;
+  }
+  .date-box{display:flex;border-radius:10px;overflow:hidden;box-shadow:0 3px 8px rgba(0,0,0,.2);}
+  .date-box .cell{display:flex;flex-direction:column;}
+  .date-box label{
+    background:var(--navy);color:#fff;font-size:11px;font-weight:700;
+    text-align:center;padding:4px 0;letter-spacing:1px;
+  }
+  .date-box input{
+    border:none;text-align:center;font-weight:800;color:var(--navy);
+    font-size:16px;padding:6px 4px;width:70px;background:#f2f7fb;
+  }
+  .date-box input:focus{outline:2px solid var(--teal);}
+  .date-box input[readonly]{background:#e4edf4;color:var(--navy);cursor:not-allowed;}
+
+  .client-grid{
+    margin-top:18px;
+    display:grid;
+    grid-template-columns:1fr;
+    gap:10px;
+  }
+  .field-line{
+    display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;
+  }
+  .field-line label{font-weight:800;color:var(--navy);font-size:15px;white-space:nowrap;}
+  .field-line input, .field-line select{
+    flex:1;min-width:150px;border:none;border-bottom:2px dashed var(--line);
+    font-size:16px;font-weight:700;color:var(--navy);padding:4px 6px;background:transparent;
+  }
+  .field-line input:focus, .field-line select:focus{outline:none;border-bottom-color:var(--teal2);}
+  .row-2{display:flex;gap:26px;flex-wrap:wrap;}
+  .row-2 > .field-line{flex:1;min-width:260px;}
+
+  table{
+    width:100%;border-collapse:collapse;margin-top:22px;
+    border-radius:14px;overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,.12);
+  }
+  thead tr{background:linear-gradient(90deg,var(--navy),var(--teal2));}
+  thead th{
+    color:#fff;padding:12px 10px;font-size:14px;letter-spacing:2px;font-weight:800;
+  }
+  tbody td{
+    border-bottom:1px dashed var(--line);
+    padding:10px 8px;font-weight:700;color:var(--navy);font-size:16px;
+    text-align:center;vertical-align:top;
+  }
+  tbody td.detalle{text-align:left;}
+  tbody td.detalle textarea{
+    width:100%;border:none;resize:vertical;font-family:inherit;font-weight:700;
+    color:var(--navy);font-size:15px;background:transparent;min-height:34px;
+  }
+  tbody td.detalle textarea:focus{outline:none;}
+  tbody input.num{
+    width:100%;border:none;text-align:center;font-weight:800;color:var(--navy);
+    font-size:16px;background:transparent;
+  }
+  tbody input.num:focus{outline:none;}
+  .row-del{
+    background:none;border:none;color:#c33;font-size:17px;cursor:pointer;box-shadow:none;padding:2px 6px;
+  }
+  .row-del:hover{transform:scale(1.15);}
+  tfoot td{
+    font-weight:900;color:var(--red);text-align:center;padding:10px 8px;
+    border-top:2px solid var(--teal2);
+  }
+
+  .add-row-wrap{margin-top:8px;}
+  .add-row-btn{
+    background:#eef7fb;color:var(--teal2);border:2px dashed var(--teal);
+    padding:8px 16px;font-size:13px;box-shadow:none;
+  }
+  .add-row-btn:hover{background:#e0f2f8;transform:none;box-shadow:none;}
+
+  .bottom-grid{
+    display:grid;grid-template-columns:1.1fr 1.1fr 0.9fr;gap:18px;margin-top:24px;
+  }
+  @media(max-width:900px){.bottom-grid{grid-template-columns:1fr;}}
+  .box{
+    border:2px solid var(--teal);border-radius:16px;padding:16px 18px;
+  }
+  .box h4{
+    margin:0 0 12px;color:var(--navy);font-size:16px;letter-spacing:1px;font-weight:900;
+  }
+  .cond-line{display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:14px;color:var(--navy);font-weight:700;}
+  .cond-line .check{color:#1a9bb0;font-size:16px;}
+  .cond-line input, .cond-line select{
+    border:none;border-bottom:1px dashed var(--line);font-weight:800;color:var(--ink);
+    padding:2px 4px;background:transparent;flex:1;min-width:60px;
+  }
+  .cond-line input:focus, .cond-line select:focus{outline:none;border-bottom-color:var(--teal2);}
+  .obs-box textarea{
+    width:100%;height:90px;border:none;resize:vertical;font-family:inherit;
+    color:var(--red);font-weight:800;font-size:17px;text-align:center;background:transparent;
+  }
+  .obs-box textarea:focus{outline:none;}
+
+  .totales{display:flex;flex-direction:column;border-radius:14px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,.18);align-self:start;}
+  .tot-row{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;}
+  .tot-row:nth-child(1){background:var(--navy);}
+  .tot-row:nth-child(2){background:var(--teal2);}
+  .tot-row:nth-child(3){background:var(--teal);}
+  .tot-row span.lbl{color:#fff;font-weight:800;font-size:14px;letter-spacing:1px;}
+  .tot-row input{
+    background:#fff;border:none;border-radius:6px;padding:6px 10px;
+    font-weight:900;color:var(--navy);width:110px;text-align:right;font-size:16px;
+  }
+  .tot-row input:focus{outline:2px solid #fff;}
+
+  .footer-note{
+    margin-top:22px;text-align:center;color:var(--red);font-weight:900;
+    font-size:14px;letter-spacing:.5px;
+  }
+
+  .history-sheet{
+    max-width:1200px;
+    margin:26px auto 0;
+    background:var(--paper);
+    border-radius:22px;
+    padding:24px 32px 30px;
+    box-shadow:0 20px 50px rgba(0,0,0,.35);
+    position:relative;
+    overflow:hidden;
+  }
+  .history-sheet::before{
+    content:"";
+    position:absolute;top:0;left:0;right:0;height:8px;
+    background:linear-gradient(90deg,var(--teal),var(--navy));
+  }
+  .history-header{
+    display:flex;align-items:center;justify-content:space-between;
+    flex-wrap:wrap;gap:14px;margin-bottom:16px;
+  }
+  .history-title{
+    display:flex;align-items:center;gap:10px;
+    font-size:20px;font-weight:900;color:var(--navy);letter-spacing:1px;
+  }
+  .history-title .icn{width:30px;height:30px;font-size:15px;}
+  .search-box{
+    display:flex;align-items:center;gap:8px;
+    background:#eef4fa;border-radius:12px;padding:8px 14px;
+    border:2px solid var(--teal);min-width:260px;flex:1;max-width:360px;
+  }
+  .search-box input{
+    border:none;background:transparent;outline:none;flex:1;
+    font-size:14px;font-weight:700;color:var(--navy);
+  }
+  .search-box .icn-search{color:var(--teal2);font-size:16px;}
+  .history-table-wrap{overflow-x:auto;}
+  table.history{
+    width:100%;border-collapse:collapse;border-radius:14px;overflow:hidden;
+    box-shadow:0 4px 14px rgba(0,0,0,.1);min-width:640px;
+  }
+  table.history thead tr{background:linear-gradient(90deg,var(--teal2),var(--navy));}
+  table.history thead th{
+    color:#fff;padding:10px 8px;font-size:12.5px;letter-spacing:1px;font-weight:800;
+  }
+  table.history tbody td{
+    border-bottom:1px dashed var(--line);padding:9px 8px;
+    font-weight:700;color:var(--navy);font-size:14px;text-align:center;
+  }
+  table.history tbody tr:hover{background:#f4fbfd;}
+  .history-note{
+    margin-top:12px;font-size:12px;color:#7488a6;text-align:center;font-style:italic;
+  }
+
+  /* ---------- Menú principal ---------- */
+  .menu-screen{
+    display:flex;align-items:center;justify-content:center;
+    min-height:60vh;padding:30px 16px;
+  }
+  .menu-card{
+    background:var(--paper);border-radius:24px;padding:40px 36px;
+    box-shadow:0 20px 50px rgba(0,0,0,.35);text-align:center;max-width:520px;width:100%;
+  }
+  .menu-title{font-size:20px;font-weight:900;color:var(--navy);margin-bottom:24px;letter-spacing:.5px;}
+  .menu-buttons{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;}
+  .menu-btn{
+    flex:1;min-width:180px;display:flex;flex-direction:column;align-items:center;gap:10px;
+    padding:28px 18px;border:none;border-radius:18px;cursor:pointer;color:#fff;font-weight:900;
+    font-size:15px;letter-spacing:.5px;box-shadow:0 6px 16px rgba(0,0,0,.25);
+    transition:transform .12s ease, box-shadow .12s ease;
+  }
+  .menu-btn:hover{transform:translateY(-3px);box-shadow:0 10px 22px rgba(0,0,0,.3);}
+  .menu-icn{font-size:36px;}
+  .menu-btn-nota{background:linear-gradient(135deg,var(--navy2),var(--navy));}
+  .menu-btn-cot{background:linear-gradient(135deg,var(--teal),var(--teal2));}
+
+  /* ---------- Hoja de Cotización ---------- */
+  .cot-sheet{
+    max-width:1200px;margin:0 auto;background:var(--paper);border-radius:22px;
+    padding:26px 32px 32px;box-shadow:0 20px 50px rgba(0,0,0,.35);position:relative;overflow:hidden;
+  }
+  .cot-sheet::before{
+    content:"";position:absolute;top:0;left:0;right:0;height:8px;
+    background:linear-gradient(90deg,var(--teal),var(--navy));
+  }
+  .cot-top{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap;}
+  .cot-title{font-size:38px;font-weight:900;color:var(--teal2);letter-spacing:1px;line-height:1;}
+  .cot-sub{font-size:15px;font-weight:700;color:var(--navy);margin-top:6px;}
+  .cot-numero{font-size:20px;font-weight:900;color:var(--red);margin-top:4px;}
+  .cot-sheet .contact-block div{justify-content:flex-end;}
+  .cot-sheet textarea.desc{
+    width:100%;border:2px solid var(--teal);border-radius:10px;padding:8px 10px;
+    font-family:inherit;font-weight:700;color:var(--navy);font-size:14px;min-height:44px;resize:vertical;
+  }
+  .cot-sheet input.num-input{
+    width:100%;border:2px solid var(--teal);border-radius:10px;padding:8px 10px;
+    text-align:center;font-weight:800;color:var(--navy);font-size:15px;
+  }
+  .cot-del-btn{
+    background:var(--red);color:#fff;border:none;border-radius:8px;width:34px;height:34px;
+    font-size:14px;cursor:pointer;box-shadow:none;
+  }
+
+  .app-hidden{display:none !important;}
+
+  .login-overlay{
+    position:fixed;inset:0;z-index:999;
+    background:linear-gradient(135deg,#0d1740,#1b2a6b 40%,#144a63 100%);
+    display:flex;align-items:center;justify-content:center;padding:20px;
+  }
+  .login-card{
+    background:#fff;border-radius:22px;padding:34px 32px;max-width:380px;width:100%;
+    box-shadow:0 20px 50px rgba(0,0,0,.4);text-align:center;
+  }
+  .login-card h2{color:var(--navy);margin:6px 0 4px;font-size:21px;}
+  .login-card p.sub{color:#6b7a99;font-size:13px;margin-bottom:20px;}
+  .login-field{text-align:left;margin-bottom:14px;}
+  .login-field label{font-size:12px;font-weight:800;color:var(--navy);display:block;margin-bottom:4px;}
+  .login-field input{
+    width:100%;padding:10px 12px;border-radius:10px;border:2px solid var(--line);
+    font-size:15px;font-weight:700;color:var(--navy);
+  }
+  .login-field input:focus{outline:none;border-color:var(--teal);}
+  .login-btn{width:100%;justify-content:center;margin-top:6px;}
+  .login-msg{margin-top:12px;font-size:13px;font-weight:700;min-height:18px;}
+  .login-msg.error{color:#c33;}
+  .login-msg.ok{color:#1a9bb0;}
+
+  .user-bar{
+    max-width:1200px;margin:0 auto 10px;display:flex;justify-content:flex-end;
+    align-items:center;gap:12px;color:#dff3ff;font-size:13px;font-weight:700;
+  }
+  .user-bar button{padding:7px 14px;font-size:12.5px;}
+
+  @media print{
+    body{background:#fff;padding:0;}
+    .toolbar{display:none;}
+    .sheet{box-shadow:none;border-radius:0;padding:14px 22px;}
+    button{display:none;}
+    .row-del{display:none;}
+    .add-row-wrap{display:none;}
+  }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<div id="loginOverlay" class="login-overlay">
+  <div class="login-card">
+    <div style="font-size:38px;">🔒</div>
+    <h2>Industrias Gráfica Seven</h2>
+    <p class="sub" id="loginSubtitle">Ingresa tu usuario y contraseña para continuar</p>
+
+    <div id="loginFormBlock">
+      <div class="login-field">
+        <label>Usuario</label>
+        <input type="text" id="loginUsuario" autocomplete="username" placeholder="usuario">
+      </div>
+      <div class="login-field">
+        <label>Contraseña</label>
+        <input type="password" id="loginPassword" autocomplete="current-password" placeholder="••••••••">
+      </div>
+      <button class="btn-teal login-btn" onclick="handleLogin()">🔑 Ingresar</button>
+      <div class="login-msg" id="loginMsg"></div>
+    </div>
+  </div>
+</div>
+
+<div id="appContent" class="app-hidden">
+
+<div class="user-bar">
+  <span id="userBadge">👤 Usuario</span>
+  <button class="btn-ghost" onclick="handleLogout()">🚪 Salir</button>
+</div>
+
+<div id="menuScreen" class="menu-screen">
+  <div class="menu-card">
+    <div class="menu-title">¿Qué deseas hacer?</div>
+    <div class="menu-buttons">
+      <button class="menu-btn menu-btn-nota" onclick="irA('nota')">
+        <span class="menu-icn">🧾</span>
+        <span>NOTA DE VENTA</span>
+      </button>
+      <button class="menu-btn menu-btn-cot" onclick="irA('cotizacion')">
+        <span class="menu-icn">📋</span>
+        <span>COTIZACIÓN</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="notaAppScreen" class="app-hidden">
+
+<div class="toolbar">
+  <div class="brand">🧾 Generador de Nota de Venta — Industrias Gráfica Seven</div>
+  <div class="btn-group">
+    <button class="btn-ghost" onclick="irA('menu')">🏠 Menú</button>
+    <button class="btn-teal" onclick="addRow()">➕ Agregar ítem</button>
+    <button class="btn-navy" onclick="window.print()">🖨️ Imprimir</button>
+    <button class="btn-navy" onclick="downloadPDF()">📄 Descargar PDF</button>
+    <button class="btn-red" onclick="resetForm()">🆕 Nota nueva</button>
+    <button class="btn-ghost app-hidden" id="btnRegistrar" onclick="toggleRegistro()">➕ Registrar usuario</button>
+  </div>
+</div>
+
+<div id="registroBlock" class="history-sheet app-hidden" style="max-width:480px;">
+  <div class="history-title" style="margin-bottom:14px;">🧑‍💼 Registrar nuevo usuario</div>
+  <div class="login-field">
+    <label>Usuario</label>
+    <input type="text" id="regUsuario" placeholder="nombre.apellido">
+  </div>
+  <div class="login-field">
+    <label>Nombre completo</label>
+    <input type="text" id="regNombre" placeholder="Nombre y apellido">
+  </div>
+  <div class="login-field">
+    <label>Contraseña</label>
+    <input type="password" id="regPassword" placeholder="mínimo 6 caracteres">
+  </div>
+  <div class="login-field">
+    <label>Rol</label>
+    <select id="regRol">
+      <option value="editor">Editor</option>
+      <option value="administrador">Administrador</option>
+    </select>
+  </div>
+  <button class="btn-navy login-btn" onclick="handleRegistro()">💾 Crear usuario</button>
+  <div class="login-msg" id="regMsg"></div>
+</div>
+
+<div class="sheet">
+
+
+  <div class="top-row">
+    <div class="logo-block">
+      <div class="logo-text">
+        <div class="g1">INDUSTRIAS GRÁFICA</div>
+        <div class="g2">Seven</div>
+        <div class="g3">"Si lo imaginas es real"</div>
+      </div>
+    </div>
+
+    <div class="title-pill">NOTA DE VENTA</div>
+
+    <div class="contact-block">
+      <div><span class="icn">📍</span> Av. Landivar, Pasaje Ingavi</div>
+      <div><span class="icn">📱</span> +591 76913792</div>
+      <div><span class="icn">✉️</span> sevensantacruz27@gmail.com</div>
+      <div><span class="icn">@</span> @sevensantacruz</div>
+    </div>
+  </div>
+
+  <div class="meta-row">
+    <div class="note-number">Nº <span id="noteNumber">000001</span></div>
+    <div class="date-box">
+      <div class="cell"><label>DÍA</label><input id="dia" type="text" maxlength="2" readonly></div>
+      <div class="cell"><label>MES</label><input id="mes" type="text" maxlength="2" readonly></div>
+      <div class="cell"><label>AÑO</label><input id="anio" type="text" maxlength="4" readonly></div>
+    </div>
+  </div>
+
+  <div class="client-grid">
+    <div class="field-line">
+      <label>Señores:</label>
+      <input type="text" id="cliente" placeholder="Nombre del cliente">
+    </div>
+    <div class="row-2">
+      <div class="field-line">
+        <label>Teléfono:</label>
+        <input type="text" id="telefono" placeholder="Número">
+      </div>
+      <div class="field-line">
+        <label>NIT/CI:</label>
+        <input type="text" id="nitci" placeholder="Documento">
+      </div>
+      <div class="field-line" style="flex:0 0 auto;">
+        <select id="factura">
+          <option>CON FACTURA</option>
+          <option>SIN FACTURA</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:70px;">CANT.</th>
+        <th>DETALLE</th>
+        <th style="width:110px;">P. UNIT (Bs.)</th>
+        <th style="width:110px;">TOTAL (Bs.)</th>
+        <th style="width:30px;"></th>
+      </tr>
+    </thead>
+    <tbody id="itemsBody"></tbody>
+  </table>
+  <div class="add-row-wrap">
+    <button class="add-row-btn" onclick="addRow()">➕ Agregar fila de detalle</button>
+  </div>
+
+  <div class="bottom-grid">
+    <div class="box">
+      <h4>CONDICIONES</h4>
+      <div class="cond-line"><span class="check">✅</span> Validez de la cotización <input type="text" id="validez" style="max-width:60px;" value="1"> días</div>
+      <div class="cond-line"><span class="check">✅</span> Forma de Pago:
+        <select id="formaPago">
+          <option>QR</option>
+          <option>Efectivo</option>
+          <option>Transferencia</option>
+          <option>Tarjeta</option>
+        </select>
+      </div>
+      <div class="cond-line"><span class="check">✅</span> Fecha de entrega: <input type="date" id="fechaEntrega"></div>
+      <div class="cond-line" style="margin-bottom:0;color:var(--red);">Todo trabajo se inicia con el 50% del total</div>
+    </div>
+
+    <div class="box obs-box">
+      <h4>OBSERVACIONES</h4>
+      <textarea id="observaciones" placeholder="Escribir observaciones..."></textarea>
+    </div>
+
+    <div class="totales">
+      <div class="tot-row"><span class="lbl">TOTAL Bs.:</span><input id="totalBs" type="number" value="0" oninput="calcSaldo()"></div>
+      <div class="tot-row"><span class="lbl">A CUENTA Bs.:</span><input id="aCuenta" type="number" value="0" oninput="calcSaldo()"></div>
+      <div class="tot-row"><span class="lbl">SALDO Bs.:</span><input id="saldo" type="number" value="0" readonly></div>
+    </div>
+  </div>
+
+  <div class="footer-note">Horario de atención Lunes a Viernes 8:30 a 19:00 — SÁBADO NO HAY ATENCIÓN</div>
+</div>
+
+<div class="history-sheet">
+  <div class="history-header">
+    <div class="history-title"><span class="icn">🗂️</span> HISTORIAL DE NOTAS DE VENTA</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+      <div class="search-box">
+        <span class="icn-search">🔎</span>
+        <input type="text" id="historySearch" placeholder="Buscar por nombre de cliente..." oninput="renderHistory(this.value)">
+      </div>
+      <button class="btn-ghost" style="padding:8px 14px;font-size:13px;" onclick="quitarDuplicados()">🧹 Quitar duplicados</button>
+    </div>
+  </div>
+  <div class="history-table-wrap">
+    <table class="history">
+      <thead>
+        <tr>
+          <th>Nº NOTA</th>
+          <th>FECHA</th>
+          <th style="text-align:left;">CLIENTE</th>
+          <th>TELÉFONO</th>
+          <th>TOTAL</th>
+          <th>SALDO</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="historyBody">
+        <tr><td colspan="7" style="text-align:center;padding:14px;color:#888;">Sin registros</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="history-note">Click en el nombre de un cliente para ver esa nota completa en el formulario · Se muestran los últimos 10 registros; el resto queda guardado en la base de datos para consultas futuras.</div>
+</div>
+
+</div><!-- fin #notaAppScreen -->
+
+<div id="cotizacionAppScreen" class="app-hidden">
+
+<div class="toolbar">
+  <div class="brand">📋 Generador de Cotización — Industrias Gráfica Seven</div>
+  <div class="btn-group">
+    <button class="btn-ghost" onclick="irA('menu')">🏠 Menú</button>
+    <button class="btn-teal" onclick="addCotRow()">➕ Agregar fila</button>
+    <button class="btn-navy" onclick="guardarCotizacion(false)">💾 Guardar</button>
+    <button class="btn-navy" onclick="window.print()">🖨️ Imprimir</button>
+    <button class="btn-navy" onclick="descargarCotizacionPDF(true)">📄 Descargar PDF</button>
+    <button class="btn-red" onclick="resetCotizacion()">🆕 Cotización nueva</button>
+  </div>
+</div>
+
+<div class="cot-sheet">
+  <div class="cot-top">
+    <div>
+      <div class="cot-title">COTIZACIÓN</div>
+      <div class="cot-sub">Gigantografía Seven</div>
+      <div class="cot-numero">N° <span id="cotNumero">000001</span></div>
+    </div>
+    <div class="contact-block" style="text-align:right;">
+      <div style="justify-content:flex-end;"><span class="icn">📍</span> Av. Landivar, Pasaje Ingavi</div>
+      <div style="justify-content:flex-end;"><span class="icn">📱</span> +591 76913792</div>
+      <div style="justify-content:flex-end;"><span class="icn">✉️</span> sevensantacruz27@gmail.com</div>
+      <div style="justify-content:flex-end;">
+        <span class="icn">📅</span> <span id="cotFecha">-</span>
+        &nbsp;&nbsp;<span class="icn">🕐</span> <span id="cotHora">-</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="row-2" style="margin-top:18px;">
+    <div class="field-line" style="flex-direction:column;align-items:flex-start;gap:4px;">
+      <label>Nombre del Cliente</label>
+      <input type="text" id="cotCliente" placeholder="" style="border:2px solid var(--teal);border-radius:10px;padding:10px 12px;width:100%;">
+    </div>
+    <div class="field-line" style="flex-direction:column;align-items:flex-start;gap:4px;">
+      <label>Número del Cliente</label>
+      <input type="text" id="cotTelefono" placeholder="" style="border:2px solid var(--teal);border-radius:10px;padding:10px 12px;width:100%;">
+    </div>
+  </div>
+
+  <table style="margin-top:22px;">
+    <thead>
+      <tr>
+        <th style="width:90px;">CANTIDAD</th>
+        <th>DESCRIPCIÓN</th>
+        <th style="width:110px;">P. UNITARIO</th>
+        <th style="width:110px;">TOTAL</th>
+        <th style="width:60px;">ACCIÓN</th>
+      </tr>
+    </thead>
+    <tbody id="cotItemsBody"></tbody>
+  </table>
+
+  <div style="text-align:right;margin-top:14px;font-size:22px;font-weight:900;color:var(--red);">
+    TOTAL Bs: <span id="cotTotal">0.00</span>
+  </div>
+
+  <div class="row-2" style="margin-top:22px;">
+    <div class="field-line">
+      <label>Días de validez cotización</label>
+      <input type="text" id="cotValidez" style="max-width:100px;">
+    </div>
+    <div class="field-line">
+      <label>Días de entrega estimada</label>
+      <input type="text" id="cotEntrega" style="max-width:100px;">
+    </div>
+  </div>
+</div>
+
+<div class="history-sheet">
+  <div class="history-header">
+    <div class="history-title"><span class="icn">🗂️</span> HISTORIAL DE COTIZACIONES</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+      <div class="search-box">
+        <span class="icn-search">🔎</span>
+        <input type="text" id="cotHistorySearch" placeholder="Buscar por nombre de cliente..." oninput="renderCotHistory(this.value)">
+      </div>
+      <button class="btn-navy" style="padding:8px 14px;font-size:13px;" onclick="descargarHistorialExcel()">📊 Descargar Historial Excel</button>
+    </div>
+  </div>
+  <div class="history-table-wrap">
+    <table class="history">
+      <thead>
+        <tr>
+          <th>N°</th>
+          <th style="text-align:left;">CLIENTE</th>
+          <th>TELÉFONO</th>
+          <th>TOTAL</th>
+          <th>FECHA</th>
+          <th>USUARIO</th>
+          <th>DESCARGAR</th>
+        </tr>
+      </thead>
+      <tbody id="cotHistoryBody">
+        <tr><td colspan="7" style="text-align:center;padding:14px;color:#888;">Sin registros</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="history-note">Se muestran los últimos 10 registros. El botón PDF de cada fila descarga esa cotización nuevamente.</div>
+</div>
+
+</div><!-- fin #cotizacionAppScreen -->
+
+</div><!-- fin #appContent -->
+
+
+<script>
+/* ============================================================
+   CONFIGURACIÓN DE BASE DE DATOS (SUPABASE) — OPCIONAL
+   ------------------------------------------------------------
+   Para que el historial se guarde en la nube y funcione igual
+   desde cualquier dispositivo o país, pega aquí tu Project URL
+   y tu anon public key (Supabase → Project Settings → API).
+
+   Si dejas los valores como están (sin pegar nada), la nota
+   seguirá funcionando normalmente, pero el historial se
+   guardará solo en el navegador donde se use.
+   ============================================================ */
+const SUPABASE_URL = "https://nphlvrbbgnlexkzvzmwa.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_GXblVl31H-lWmaOexwEb-w_uNXhdwGy";
+
+let supabaseClient = null;
+if (SUPABASE_URL && SUPABASE_ANON_KEY &&
+    !SUPABASE_URL.includes("PEGA_AQUI") &&
+    !SUPABASE_ANON_KEY.includes("PEGA_AQUI") &&
+    window.supabase) {
+  try{
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }catch(e){ console.error("No se pudo conectar a Supabase", e); }
+}
+
+let rowCount = 0;
+
+function makeRow(cant, detalle, pu){
+  rowCount++;
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input class="num" type="number" value="${cant}" oninput="calcAll()"></td>
+    <td class="detalle"><textarea rows="1" oninput="autoGrow(this)">${detalle}</textarea></td>
+    <td><input class="num pu" type="number" value="${pu}" oninput="calcAll()"></td>
+    <td><input class="num total" type="number" value="0" readonly></td>
+    <td><button class="row-del" onclick="this.closest('tr').remove(); calcAll();">✖</button></td>
+  `;
+  return tr;
+}
+
+function autoGrow(el){
+  el.style.height = 'auto';
+  el.style.height = (el.scrollHeight) + 'px';
+}
+
+function addRow(cant=1, detalle='', pu=0){
+  const body = document.getElementById('itemsBody');
+  body.appendChild(makeRow(cant, detalle, pu));
+  calcAll();
+}
+
+function calcAll(){
+  const rows = document.querySelectorAll('#itemsBody tr');
+  let sum = 0;
+  rows.forEach(r=>{
+    const cant = parseFloat(r.children[0].querySelector('input').value) || 0;
+    const pu = parseFloat(r.children[2].querySelector('input').value) || 0;
+    const tot = cant * pu;
+    r.children[3].querySelector('input').value = tot.toFixed(0);
+    sum += tot;
+  });
+  document.getElementById('totalBs').value = sum.toFixed(0);
+  calcSaldo();
+}
+
+function calcSaldo(){
+  const total = parseFloat(document.getElementById('totalBs').value) || 0;
+  const cuenta = parseFloat(document.getElementById('aCuenta').value) || 0;
+  document.getElementById('saldo').value = (total - cuenta).toFixed(0);
+}
+
+function setToday(){
+  const d = new Date();
+  document.getElementById('dia').value = String(d.getDate()).padStart(2,'0');
+  document.getElementById('mes').value = String(d.getMonth()+1).padStart(2,'0');
+  document.getElementById('anio').value = d.getFullYear();
+}
+
+async function loadNoteNumber(){
+  let num = 234;
+
+  if(supabaseClient){
+    try{
+      const { data, error } = await supabaseClient
+        .from('notas')
+        .select('numero_int')
+        .order('numero_int', { ascending:false })
+        .limit(1);
+      if(!error && data && data.length > 0 && data[0].numero_int){
+        num = data[0].numero_int + 1;
+      }
+    }catch(e){ console.error('No se pudo consultar el siguiente número en Supabase', e); }
+  } else {
+    try{
+      const val = await storageGet('seven_note_counter');
+      if(val){ num = parseInt(val) || 234; }
+    }catch(e){ num = 234; }
+    await storageSet('seven_note_counter', String(num));
+  }
+
+  document.getElementById('noteNumber').textContent = String(num).padStart(6,'0');
+}
+
+function resetForm(){
+  document.getElementById('itemsBody').innerHTML = '';
+  ['cliente','telefono','nitci','observaciones'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('aCuenta').value = 0;
+  document.getElementById('validez').value = 1;
+  document.getElementById('fechaEntrega').value = '';
+  addRow(1,'',0);
+  calcAll();
+  loadNoteNumber();
+  document.getElementById('historySearch').value = '';
+}
+
+async function downloadPDF(){
+  const sheet = document.querySelector('.sheet');
+  const addRowWrap = document.querySelector('.add-row-wrap');
+  const delButtons = document.querySelectorAll('.row-del');
+
+  addRowWrap.style.display = 'none';
+  delButtons.forEach(b => b.style.visibility = 'hidden');
+
+  const canvas = await html2canvas(sheet, {scale:2, backgroundColor:'#ffffff'});
+
+  addRowWrap.style.display = '';
+  delButtons.forEach(b => b.style.visibility = '');
+
+  const imgData = canvas.toDataURL('image/png');
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF('p','mm','a4');
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const imgWidth = pageWidth;
+  const imgHeight = (canvas.height * imgWidth) / canvas.width;
+  let heightLeft = imgHeight;
+  let position = 0;
+  pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+  heightLeft -= pageHeight;
+  while(heightLeft > 0){
+    position = heightLeft - imgHeight;
+    pdf.addPage();
+    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+  }
+  const num = document.getElementById('noteNumber').textContent;
+  pdf.save(`Nota_de_Venta_${num}.pdf`);
+  try{
+    await saveToHistory();
+  }catch(e){
+    console.error('Error guardando en historial', e);
+    alert('El PDF se descargó, pero hubo un problema al guardar en el historial.');
+  }
+}
+
+async function storageGet(key){
+  try{
+    if(window.storage && typeof window.storage.get === 'function'){
+      const r = await window.storage.get(key, false);
+      return r ? r.value : null;
+    }
+  }catch(e){ /* sigue al respaldo local */ }
+  try{
+    return localStorage.getItem(key);
+  }catch(e){ return null; }
+}
+
+async function storageSet(key, value){
+  let savedRemote = false;
+  try{
+    if(window.storage && typeof window.storage.set === 'function'){
+      await window.storage.set(key, value, false);
+      savedRemote = true;
+    }
+  }catch(e){ /* sigue al respaldo local */ }
+  try{
+    localStorage.setItem(key, value);
+  }catch(e){ if(!savedRemote) console.error('No se pudo guardar', key, e); }
+}
+
+const HISTORY_KEY = 'seven_notas_historial';
+
+function getItemsData(){
+  const rows = document.querySelectorAll('#itemsBody tr');
+  return Array.from(rows).map(r => ({
+    cant: r.children[0].querySelector('input').value,
+    detalle: r.children[1].querySelector('textarea').value,
+    pu: r.children[2].querySelector('input').value
+  }));
+}
+
+async function saveToHistory(){
+  const record = {
+    numero: document.getElementById('noteNumber').textContent,
+    fecha: `${document.getElementById('dia').value}/${document.getElementById('mes').value}/${document.getElementById('anio').value}`,
+    cliente: document.getElementById('cliente').value || '(sin nombre)',
+    telefono: document.getElementById('telefono').value,
+    nitci: document.getElementById('nitci').value,
+    factura: document.getElementById('factura').value,
+    total: document.getElementById('totalBs').value,
+    aCuenta: document.getElementById('aCuenta').value,
+    saldo: document.getElementById('saldo').value,
+    validez: document.getElementById('validez').value,
+    formaPago: document.getElementById('formaPago').value,
+    fechaEntrega: document.getElementById('fechaEntrega').value,
+    observaciones: document.getElementById('observaciones').value,
+    items: getItemsData(),
+    guardado: Date.now()
+  };
+  const numeroInt = parseInt(record.numero, 10) || 0;
+  let arr = [];
+  try{
+    const val = await storageGet(HISTORY_KEY);
+    if(val) arr = JSON.parse(val);
+  }catch(e){ arr = []; }
+  arr = arr.filter(r => r.numero !== record.numero);
+  arr.push(record);
+  await storageSet(HISTORY_KEY, JSON.stringify(arr));
+
+  if(supabaseClient){
+    try{
+      await supabaseClient.from('notas').insert([{
+        numero: record.numero,
+        numero_int: numeroInt,
+        fecha: record.fecha,
+        cliente: record.cliente,
+        telefono: record.telefono,
+        nitci: record.nitci,
+        total: record.total,
+        a_cuenta: record.aCuenta,
+        saldo: record.saldo,
+        items: record.items,
+        observaciones: record.observaciones,
+        usuario: currentUser ? currentUser.usuario : null
+      }]);
+      await logAcceso('nota_guardada', `Nota Nº ${record.numero} - Cliente: ${record.cliente}`);
+    }catch(e){ console.error('No se pudo guardar en Supabase', e); }
+  } else {
+    await storageSet('seven_note_counter', String(numeroInt + 1));
+  }
+
+  renderHistory(document.getElementById('historySearch').value);
+  await loadNoteNumber();
+}
+
+async function renderHistory(filter=''){
+  const tbody = document.getElementById('historyBody');
+  let arr = [];
+
+  if(supabaseClient){
+    try{
+      let query = supabaseClient.from('notas').select('*').order('created_at', {ascending:false}).limit(50);
+      if(filter.trim() !== ''){
+        query = query.ilike('cliente', `%${filter.trim()}%`);
+      }
+      const { data, error } = await query;
+      if(!error && data){
+        arr = data.map(d => ({
+          id: d.id,
+          numero: d.numero, fecha: d.fecha, cliente: d.cliente, telefono: d.telefono,
+          nitci: d.nitci, factura: d.factura, total: d.total, aCuenta: d.a_cuenta,
+          saldo: d.saldo, validez: d.validez, formaPago: d.forma_pago,
+          fechaEntrega: d.fecha_entrega, observaciones: d.observaciones,
+          items: d.items, guardado: new Date(d.created_at).getTime()
+        }));
+      }
+    }catch(e){ console.error('No se pudo leer de Supabase', e); }
+  }
+
+  if(!supabaseClient){
+    try{
+      const val = await storageGet(HISTORY_KEY);
+      if(val) arr = JSON.parse(val);
+    }catch(e){ arr = []; }
+
+    arr.sort((a,b) => (b.guardado||0) - (a.guardado||0));
+    if(filter.trim() !== ''){
+      const f = filter.trim().toLowerCase();
+      arr = arr.filter(r => (r.cliente||'').toLowerCase().includes(f));
+    }
+  }
+
+  const showList = arr.slice(0,10);
+
+  if(showList.length === 0){
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:14px;color:#888;">Sin registros</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = '';
+  showList.forEach(r=>{
+    const tr = document.createElement('tr');
+    tr.style.cursor = 'pointer';
+    tr.title = 'Click para ver esta nota completa en el formulario';
+
+    const tdNum = document.createElement('td');
+    tdNum.textContent = r.numero;
+    const tdFecha = document.createElement('td');
+    tdFecha.textContent = r.fecha;
+    const tdCliente = document.createElement('td');
+    tdCliente.textContent = r.cliente;
+    tdCliente.style.textAlign = 'left';
+    tdCliente.style.color = 'var(--teal2)';
+    tdCliente.style.textDecoration = 'underline';
+    tdCliente.style.fontWeight = '900';
+    const tdTel = document.createElement('td');
+    tdTel.textContent = r.telefono || '-';
+    const tdTotal = document.createElement('td');
+    tdTotal.textContent = `Bs. ${r.total}`;
+    const tdSaldo = document.createElement('td');
+    tdSaldo.textContent = `Bs. ${r.saldo}`;
+    const tdDel = document.createElement('td');
+    const btnDel = document.createElement('button');
+    btnDel.textContent = '🗑️';
+    btnDel.title = 'Borrar este registro';
+    btnDel.style.cssText = 'background:none;border:none;cursor:pointer;font-size:15px;box-shadow:none;padding:2px 6px;';
+    btnDel.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      deleteRecord(r);
+    });
+    tdDel.appendChild(btnDel);
+
+    tr.append(tdNum, tdFecha, tdCliente, tdTel, tdTotal, tdSaldo, tdDel);
+    tr.addEventListener('click', () => loadRecord(r));
+    tbody.appendChild(tr);
+  });
+}
+
+async function deleteRecord(record){
+  if(!confirm(`¿Borrar la nota Nº ${record.numero} de "${record.cliente}"? Esta acción no se puede deshacer.`)) return;
+
+  if(supabaseClient && record.id){
+    try{
+      await supabaseClient.from('notas').delete().eq('id', record.id);
+    }catch(e){ console.error('No se pudo borrar en Supabase', e); }
+  } else {
+    try{
+      let arr = [];
+      const val = await storageGet(HISTORY_KEY);
+      if(val) arr = JSON.parse(val);
+      arr = arr.filter(r => r.numero !== record.numero || r.guardado !== record.guardado);
+      await storageSet(HISTORY_KEY, JSON.stringify(arr));
+    }catch(e){ console.error(e); }
+  }
+  renderHistory(document.getElementById('historySearch').value);
+}
+
+async function quitarDuplicados(){
+  if(!supabaseClient){
+    alert('Esta función necesita estar conectado a la base de datos.');
+    return;
+  }
+  if(!confirm('Esto va a revisar todo el historial y borrar los números de nota repetidos, dejando solo el más reciente de cada uno. ¿Continuar?')) return;
+
+  try{
+    const { data, error } = await supabaseClient
+      .from('notas')
+      .select('id, numero, created_at')
+      .order('created_at', { ascending:false });
+
+    if(error || !data){
+      alert('No se pudo leer el historial completo.');
+      return;
+    }
+
+    const vistos = new Set();
+    const idsABorrar = [];
+    data.forEach(r=>{
+      if(vistos.has(r.numero)){
+        idsABorrar.push(r.id);
+      } else {
+        vistos.add(r.numero);
+      }
+    });
+
+    if(idsABorrar.length === 0){
+      alert('No se encontraron notas repetidas.');
+      return;
+    }
+
+    await supabaseClient.from('notas').delete().in('id', idsABorrar);
+    alert(`Se borraron ${idsABorrar.length} nota(s) repetida(s).`);
+    renderHistory(document.getElementById('historySearch').value);
+  }catch(e){
+    console.error(e);
+    alert('Ocurrió un error al quitar los duplicados.');
+  }
+}
+
+function loadRecord(record){
+  document.getElementById('noteNumber').textContent = record.numero;
+
+  const partesFecha = (record.fecha || '').split('/');
+  if(partesFecha[0]) document.getElementById('dia').value = partesFecha[0];
+  if(partesFecha[1]) document.getElementById('mes').value = partesFecha[1];
+  if(partesFecha[2]) document.getElementById('anio').value = partesFecha[2];
+
+  document.getElementById('cliente').value = record.cliente === '(sin nombre)' ? '' : (record.cliente || '');
+  document.getElementById('telefono').value = record.telefono || '';
+  document.getElementById('nitci').value = record.nitci || '';
+  document.getElementById('factura').value = record.factura || 'CON FACTURA';
+  document.getElementById('validez').value = record.validez || '1';
+  document.getElementById('formaPago').value = record.formaPago || 'QR';
+  document.getElementById('fechaEntrega').value = record.fechaEntrega || '';
+  document.getElementById('observaciones').value = record.observaciones || '';
+  document.getElementById('aCuenta').value = record.aCuenta || 0;
+
+  const body = document.getElementById('itemsBody');
+  body.innerHTML = '';
+  const items = (record.items && record.items.length) ? record.items : [{cant:1, detalle:'', pu:0}];
+  items.forEach(it => body.appendChild(makeRow(it.cant, it.detalle, it.pu)));
+
+  calcAll();
+  document.querySelector('.sheet').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+// ============================================================
+// LOGIN, SESIÓN, AUDITORÍA Y AUTO-GUARDADO POR INACTIVIDAD
+// ============================================================
+let currentUser = null;
+let idleTimer = null;
+const IDLE_LIMIT_MS = 10 * 60 * 1000; // 10 minutos
+let notaInited = false;
+let cotInited = false;
+
+function irA(destino){
+  document.getElementById('menuScreen').classList.add('app-hidden');
+  document.getElementById('notaAppScreen').classList.add('app-hidden');
+  document.getElementById('cotizacionAppScreen').classList.add('app-hidden');
+
+  if(destino === 'menu'){
+    document.getElementById('menuScreen').classList.remove('app-hidden');
+  } else if(destino === 'nota'){
+    document.getElementById('notaAppScreen').classList.remove('app-hidden');
+    if(!notaInited){ initNotaApp(); notaInited = true; }
+  } else if(destino === 'cotizacion'){
+    document.getElementById('cotizacionAppScreen').classList.remove('app-hidden');
+    if(!cotInited){ initCotApp(); cotInited = true; }
+  }
+}
+
+function initNotaApp(){
+  setToday();
+  loadNoteNumber();
+  addRow(1,'CIRCULO DE 80X80CM EN ACRILICO CON LOGO PERSONALIZADO',900);
+  addRow(1,'CIRCULO DE 50X50CM JALAVISTA ACRILICO LOGO BLANCO CON AZUL Y BORDE NEGRO',1000);
+  addRow(1,'PLACA EN ACRILICO DE 22X30CM CON 2 PERNOS',150);
+  calcAll();
+  renderHistory();
+  restoreDraftIfAny();
+}
+
+/* ============================================================
+   COTIZACIÓN
+   ============================================================ */
+let cotDraftId = null;
+
+function setCotDateTime(){
+  const d = new Date();
+  document.getElementById('cotFecha').textContent = `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
+  document.getElementById('cotHora').textContent = d.toLocaleTimeString('es-BO', {hour:'numeric', minute:'2-digit', second:'2-digit'});
+}
+
+async function loadCotNumber(){
+  let num = 1;
+  if(supabaseClient){
+    try{
+      const { data, error } = await supabaseClient
+        .from('cotizaciones')
+        .select('numero_int')
+        .order('numero_int', { ascending:false })
+        .limit(1);
+      if(!error && data && data.length > 0 && data[0].numero_int){
+        num = data[0].numero_int + 1;
+      }
+    }catch(e){ console.error('No se pudo consultar el siguiente número de cotización', e); }
+  } else {
+    try{
+      const val = await storageGet('seven_cot_counter');
+      if(val) num = parseInt(val) || 1;
+    }catch(e){ num = 1; }
+  }
+  document.getElementById('cotNumero').textContent = String(num).padStart(6,'0');
+}
+
+function addCotRow(cant=1, detalle='', pu=0){
+  const body = document.getElementById('cotItemsBody');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input class="num-input" type="number" value="${cant}" oninput="calcCotAll()"></td>
+    <td><textarea class="desc" rows="1" oninput="calcCotAll()">${detalle}</textarea></td>
+    <td><input class="num-input" type="number" value="${pu}" oninput="calcCotAll()"></td>
+    <td><input class="num-input" type="number" value="0" readonly></td>
+    <td style="text-align:center;"><button class="cot-del-btn" onclick="this.closest('tr').remove(); calcCotAll();">✖</button></td>
+  `;
+  body.appendChild(tr);
+  calcCotAll();
+}
+
+function calcCotAll(){
+  const rows = document.querySelectorAll('#cotItemsBody tr');
+  let sum = 0;
+  rows.forEach(r=>{
+    const inputs = r.querySelectorAll('input');
+    const cant = parseFloat(inputs[0].value) || 0;
+    const pu = parseFloat(inputs[1].value) || 0;
+    const tot = cant * pu;
+    inputs[2].value = tot.toFixed(2);
+    sum += tot;
+  });
+  document.getElementById('cotTotal').textContent = sum.toFixed(2);
+}
+
+function getCotItemsData(){
+  const rows = document.querySelectorAll('#cotItemsBody tr');
+  return Array.from(rows).map(r=>{
+    const inputs = r.querySelectorAll('input');
+    const textarea = r.querySelector('textarea');
+    return { cant: inputs[0].value, detalle: textarea.value, pu: inputs[1].value };
+  });
+}
+
+async function guardarCotizacion(){
+  const record = {
+    numero: document.getElementById('cotNumero').textContent,
+    cliente: document.getElementById('cotCliente').value || '(sin nombre)',
+    telefono: document.getElementById('cotTelefono').value,
+    validez: document.getElementById('cotValidez').value,
+    entrega: document.getElementById('cotEntrega').value,
+    items: getCotItemsData(),
+    total: document.getElementById('cotTotal').textContent,
+    usuario: currentUser ? currentUser.usuario : null
+  };
+  const numeroInt = parseInt(record.numero, 10) || 0;
+
+  if(supabaseClient){
+    try{
+      if(cotDraftId){
+        await supabaseClient.from('cotizaciones').update({
+          cliente: record.cliente, telefono: record.telefono, validez: record.validez,
+          entrega: record.entrega, items: record.items, total: record.total
+        }).eq('id', cotDraftId);
+      } else {
+        const { data, error } = await supabaseClient.from('cotizaciones').insert([{
+          numero: record.numero, numero_int: numeroInt, cliente: record.cliente,
+          telefono: record.telefono, validez: record.validez, entrega: record.entrega,
+          items: record.items, total: record.total, usuario: record.usuario
+        }]).select();
+        if(!error && data && data[0]) cotDraftId = data[0].id;
+      }
+    }catch(e){ console.error('No se pudo guardar la cotización', e); }
+  }
+
+  renderCotHistory(document.getElementById('cotHistorySearch').value);
+  return record;
+}
+
+async function generarPDFdesdeCotizacion(){
+  const sheet = document.querySelector('.cot-sheet');
+  const delButtons = document.querySelectorAll('.cot-del-btn');
+  delButtons.forEach(b => b.style.visibility = 'hidden');
+
+  const canvas = await html2canvas(sheet, {scale:2, backgroundColor:'#ffffff'});
+
+  delButtons.forEach(b => b.style.visibility = '');
+
+  const imgData = canvas.toDataURL('image/png');
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF('p','mm','a4');
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const imgWidth = pageWidth;
+  const imgHeight = (canvas.height * imgWidth) / canvas.width;
+  let heightLeft = imgHeight;
+  let position = 0;
+  pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+  heightLeft -= pageHeight;
+  while(heightLeft > 0){
+    position = heightLeft - imgHeight;
+    pdf.addPage();
+    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+  }
+  const num = document.getElementById('cotNumero').textContent;
+  pdf.save(`Cotizacion_${num}.pdf`);
+}
+
+async function descargarCotizacionPDF(){
+  await guardarCotizacion();
+  await generarPDFdesdeCotizacion();
+  const num = document.getElementById('cotNumero').textContent;
+  await logAcceso('cotizacion_pdf', `Cotización Nº ${num}`);
+
+  cotDraftId = null;
+  await loadCotNumber();
+  renderCotHistory(document.getElementById('cotHistorySearch').value);
+}
+
+function resetCotizacion(){
+  document.getElementById('cotItemsBody').innerHTML = '';
+  document.getElementById('cotCliente').value = '';
+  document.getElementById('cotTelefono').value = '';
+  document.getElementById('cotValidez').value = '';
+  document.getElementById('cotEntrega').value = '';
+  document.getElementById('cotHistorySearch').value = '';
+  cotDraftId = null;
+  addCotRow(1,'',0);
+  calcCotAll();
+  setCotDateTime();
+  loadCotNumber();
+}
+
+function loadCotRecord(record){
+  document.getElementById('cotNumero').textContent = record.numero;
+  document.getElementById('cotCliente').value = record.cliente === '(sin nombre)' ? '' : (record.cliente || '');
+  document.getElementById('cotTelefono').value = record.telefono || '';
+  document.getElementById('cotValidez').value = record.validez || '';
+  document.getElementById('cotEntrega').value = record.entrega || '';
+  cotDraftId = record.id || null;
+
+  const body = document.getElementById('cotItemsBody');
+  body.innerHTML = '';
+  const items = (record.items && record.items.length) ? record.items : [{cant:1, detalle:'', pu:0}];
+  items.forEach(it => addCotRow(it.cant, it.detalle, it.pu));
+  calcCotAll();
+
+  document.querySelector('.cot-sheet').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+async function redescargarCotizacion(record){
+  loadCotRecord(record);
+  await generarPDFdesdeCotizacion();
+}
+
+async function renderCotHistory(filter=''){
+  const tbody = document.getElementById('cotHistoryBody');
+  let arr = [];
+
+  if(supabaseClient){
+    try{
+      let query = supabaseClient.from('cotizaciones').select('*').order('created_at', {ascending:false}).limit(50);
+      if(filter && filter.trim() !== ''){
+        query = query.ilike('cliente', `%${filter.trim()}%`);
+      }
+      const { data, error } = await query;
+      if(!error && data){
+        arr = data.map(d => ({
+          id: d.id, numero: d.numero, cliente: d.cliente, telefono: d.telefono,
+          total: d.total, validez: d.validez, entrega: d.entrega, items: d.items,
+          usuario: d.usuario, fecha: new Date(d.created_at).toLocaleDateString('es-BO'),
+          guardado: new Date(d.created_at).getTime()
+        }));
+      }
+    }catch(e){ console.error('No se pudo leer el historial de cotizaciones', e); }
+  }
+
+  const showList = arr.slice(0,10);
+
+  if(showList.length === 0){
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:14px;color:#888;">Sin registros</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = '';
+  showList.forEach(r=>{
+    const tr = document.createElement('tr');
+    tr.style.cursor = 'pointer';
+    tr.title = 'Click para ver esta cotización completa en el formulario';
+
+    const tdNum = document.createElement('td'); tdNum.textContent = r.numero;
+    const tdCliente = document.createElement('td');
+    tdCliente.textContent = r.cliente;
+    tdCliente.style.cssText = 'text-align:left;color:var(--teal2);text-decoration:underline;font-weight:900;';
+    const tdTel = document.createElement('td'); tdTel.textContent = r.telefono || '-';
+    const tdTotal = document.createElement('td'); tdTotal.textContent = `Bs ${r.total}`;
+    const tdFecha = document.createElement('td'); tdFecha.textContent = r.fecha;
+    const tdUser = document.createElement('td'); tdUser.textContent = (r.usuario || '-').toUpperCase();
+    const tdBtn = document.createElement('td');
+    const btnPdf = document.createElement('button');
+    btnPdf.textContent = 'PDF';
+    btnPdf.className = 'btn-teal';
+    btnPdf.style.cssText = 'padding:6px 12px;font-size:12px;box-shadow:none;';
+    btnPdf.addEventListener('click', (ev)=>{ ev.stopPropagation(); redescargarCotizacion(r); });
+    tdBtn.appendChild(btnPdf);
+
+    tr.append(tdNum, tdCliente, tdTel, tdTotal, tdFecha, tdUser, tdBtn);
+    tr.addEventListener('click', () => loadCotRecord(r));
+    tbody.appendChild(tr);
+  });
+}
+
+async function descargarHistorialExcel(){
+  if(!supabaseClient){
+    alert('La base de datos no está configurada.');
+    return;
+  }
+  try{
+    const { data, error } = await supabaseClient
+      .from('cotizaciones')
+      .select('*')
+      .order('created_at', { ascending:false });
+
+    if(error || !data){
+      alert('No se pudo obtener el historial.');
+      return;
+    }
+
+    const filas = data.map(d => ({
+      'N°': d.numero,
+      'Cliente': d.cliente,
+      'Teléfono': d.telefono,
+      'Total Bs': d.total,
+      'Validez (días)': d.validez,
+      'Entrega (días)': d.entrega,
+      'Usuario': d.usuario,
+      'Fecha': new Date(d.created_at).toLocaleString('es-BO')
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(filas);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Cotizaciones');
+    XLSX.writeFile(wb, `Historial_Cotizaciones_${Date.now()}.xlsx`);
+  }catch(e){
+    console.error(e);
+    alert('Ocurrió un error generando el archivo Excel.');
+  }
+}
+
+function initCotApp(){
+  setCotDateTime();
+  loadCotNumber();
+  addCotRow(1,'',0);
+  calcCotAll();
+  renderCotHistory();
+}
+
+async function logAcceso(accion, detalle){
+  if(!supabaseClient) return;
+  try{
+    await supabaseClient.from('accesos').insert([{
+      usuario: currentUser ? currentUser.usuario : null,
+      accion: accion,
+      detalle: detalle || null
+    }]);
+  }catch(e){ console.error('No se pudo registrar el acceso', e); }
+}
+
+async function handleLogin(){
+  const usuario = document.getElementById('loginUsuario').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const msg = document.getElementById('loginMsg');
+  msg.textContent = '';
+  msg.className = 'login-msg';
+
+  if(!usuario || !password){
+    msg.textContent = 'Ingresa usuario y contraseña.';
+    msg.classList.add('error');
+    return;
+  }
+
+  if(!supabaseClient){
+    msg.textContent = 'La base de datos no está configurada.';
+    msg.classList.add('error');
+    return;
+  }
+
+  try{
+    const { data, error } = await supabaseClient
+      .from('usuarios')
+      .select('usuario, nombre, activo, rol')
+      .eq('usuario', usuario)
+      .eq('password', password)
+      .maybeSingle();
+
+    if(error){
+      msg.textContent = 'Error de conexión con la base de datos: ' + error.message;
+      msg.classList.add('error');
+      return;
+    }
+
+    if(!data || data.activo === false){
+      msg.textContent = 'Usuario o contraseña incorrectos.';
+      msg.classList.add('error');
+      document.getElementById('loginPassword').value = '';
+      return;
+    }
+
+    currentUser = { usuario, nombre: data.nombre || usuario, rol: data.rol || 'editor' };
+    sessionStorage.setItem('seven_user', JSON.stringify(currentUser));
+    document.getElementById('userBadge').textContent = `👤 ${currentUser.nombre} (${currentUser.rol})`;
+    document.getElementById('btnRegistrar').classList.toggle('app-hidden', currentUser.rol !== 'administrador');
+    document.getElementById('loginOverlay').classList.add('app-hidden');
+    document.getElementById('appContent').classList.remove('app-hidden');
+    document.getElementById('loginPassword').value = '';
+
+    await logAcceso('login', 'Inicio de sesión');
+    irA('menu');
+    setupIdleWatcher();
+
+  }catch(e){
+    console.error(e);
+    msg.textContent = 'Error de conexión con la base de datos.';
+    msg.classList.add('error');
+  }
+}
+
+async function handleLogout(auto){
+  if(currentUser){
+    const numero = document.getElementById('noteNumber') ? document.getElementById('noteNumber').textContent : '';
+    const cliente = document.getElementById('cliente') ? document.getElementById('cliente').value : '';
+    await logAcceso(
+      auto ? 'cierre_por_inactividad' : 'logout',
+      `Nota Nº ${numero}${cliente ? ' - Cliente: ' + cliente : ''}`
+    );
+  }
+  currentUser = null;
+  sessionStorage.removeItem('seven_user');
+  clearTimeout(idleTimer);
+  document.getElementById('appContent').classList.add('app-hidden');
+  document.getElementById('loginOverlay').classList.remove('app-hidden');
+  document.getElementById('loginSubtitle').textContent = auto
+    ? 'Tu sesión se cerró por inactividad. Tu nota se guardó automáticamente.'
+    : 'Ingresa tu usuario y contraseña para continuar';
+  document.getElementById('loginMsg').textContent = '';
+}
+
+function saveDraft(){
+  if(!currentUser) return;
+  const draft = {
+    numero: document.getElementById('noteNumber').textContent,
+    dia: document.getElementById('dia').value,
+    mes: document.getElementById('mes').value,
+    anio: document.getElementById('anio').value,
+    cliente: document.getElementById('cliente').value,
+    telefono: document.getElementById('telefono').value,
+    nitci: document.getElementById('nitci').value,
+    factura: document.getElementById('factura').value,
+    validez: document.getElementById('validez').value,
+    formaPago: document.getElementById('formaPago').value,
+    fechaEntrega: document.getElementById('fechaEntrega').value,
+    observaciones: document.getElementById('observaciones').value,
+    aCuenta: document.getElementById('aCuenta').value,
+    items: getItemsData()
+  };
+  try{
+    localStorage.setItem('seven_draft_' + currentUser.usuario, JSON.stringify(draft));
+  }catch(e){ console.error('No se pudo guardar el borrador', e); }
+}
+
+function restoreDraftIfAny(){
+  if(!currentUser) return;
+  let draft = null;
+  try{
+    const val = localStorage.getItem('seven_draft_' + currentUser.usuario);
+    if(val) draft = JSON.parse(val);
+  }catch(e){ draft = null; }
+  if(!draft) return;
+
+  const hayContenido = draft.cliente || (draft.items && draft.items.some(it => it.detalle));
+  if(!hayContenido) return;
+
+  if(confirm('Encontramos una nota sin terminar de tu última sesión. ¿Quieres continuarla?')){
+    document.getElementById('dia').value = draft.dia || document.getElementById('dia').value;
+    document.getElementById('mes').value = draft.mes || document.getElementById('mes').value;
+    document.getElementById('anio').value = draft.anio || document.getElementById('anio').value;
+    document.getElementById('cliente').value = draft.cliente || '';
+    document.getElementById('telefono').value = draft.telefono || '';
+    document.getElementById('nitci').value = draft.nitci || '';
+    document.getElementById('factura').value = draft.factura || 'CON FACTURA';
+    document.getElementById('validez').value = draft.validez || '1';
+    document.getElementById('formaPago').value = draft.formaPago || 'QR';
+    document.getElementById('fechaEntrega').value = draft.fechaEntrega || '';
+    document.getElementById('observaciones').value = draft.observaciones || '';
+    document.getElementById('aCuenta').value = draft.aCuenta || 0;
+
+    if(draft.items && draft.items.length){
+      document.getElementById('itemsBody').innerHTML = '';
+      draft.items.forEach(it => addRow(it.cant, it.detalle, it.pu));
+    }
+    calcAll();
+  }
+  localStorage.removeItem('seven_draft_' + currentUser.usuario);
+}
+
+function setupIdleWatcher(){
+  const reset = () => {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(async () => {
+      saveDraft();
+      await handleLogout(true);
+    }, IDLE_LIMIT_MS);
+  };
+  ['mousemove','keydown','click','scroll','touchstart'].forEach(evt=>{
+    document.addEventListener(evt, reset, { passive:true });
+  });
+  reset();
+}
+
+function toggleRegistro(){
+  document.getElementById('registroBlock').classList.toggle('app-hidden');
+}
+
+async function handleRegistro(){
+  if(!currentUser || currentUser.rol !== 'administrador'){
+    alert('Solo un administrador puede registrar nuevos usuarios.');
+    return;
+  }
+
+  const usuario = document.getElementById('regUsuario').value.trim();
+  const nombre = document.getElementById('regNombre').value.trim();
+  const password = document.getElementById('regPassword').value;
+  const rol = document.getElementById('regRol').value;
+  const msg = document.getElementById('regMsg');
+  msg.textContent = '';
+  msg.className = 'login-msg';
+
+  if(!usuario || !password || password.length < 6){
+    msg.textContent = 'Usuario obligatorio y contraseña de al menos 6 caracteres.';
+    msg.classList.add('error');
+    return;
+  }
+  if(!supabaseClient){
+    msg.textContent = 'La base de datos no está configurada.';
+    msg.classList.add('error');
+    return;
+  }
+
+  try{
+    const { error } = await supabaseClient
+      .from('usuarios')
+      .insert([{ usuario, password, nombre, rol }]);
+
+    if(error){
+      msg.textContent = error.message.includes('duplicate')
+        ? 'Ese usuario ya existe. Prueba con otro nombre de usuario.'
+        : 'Error: ' + error.message;
+      msg.classList.add('error');
+      return;
+    }
+    msg.textContent = `Usuario "${usuario}" (${rol}) creado correctamente.`;
+    msg.classList.add('ok');
+    document.getElementById('regUsuario').value = '';
+    document.getElementById('regNombre').value = '';
+    document.getElementById('regPassword').value = '';
+    document.getElementById('regRol').value = 'editor';
+  }catch(e){
+    console.error(e);
+    msg.textContent = 'Error de conexión con la base de datos.';
+    msg.classList.add('error');
+  }
+}
+
+// Si ya había una sesión activa en esta pestaña, la restauramos
+(function checkExistingSession(){
+  try{
+    const saved = sessionStorage.getItem('seven_user');
+    if(saved){
+      currentUser = JSON.parse(saved);
+      document.getElementById('userBadge').textContent = `👤 ${currentUser.nombre} (${currentUser.rol || 'editor'})`;
+      document.getElementById('btnRegistrar').classList.toggle('app-hidden', currentUser.rol !== 'administrador');
+      document.getElementById('loginOverlay').classList.add('app-hidden');
+      document.getElementById('appContent').classList.remove('app-hidden');
+      irA('menu');
+      setupIdleWatcher();
+    }
+  }catch(e){ /* sin sesión previa */ }
+})();
+</script>
+
+</body>
+</html>
