@@ -560,14 +560,36 @@
 
   /* ============================ PRODUCCIÓN ============================ */
   function vProd() {
-    const limite = new Date(); limite.setDate(limite.getDate() - 30);
-    const list = S.notas.filter((n) => n.estado_produccion !== "entregado" || (docDate(n) && docDate(n) > limite));
-    content().innerHTML = '<div class="kanban">' + ESTADOS.map((e, i) => {
-      const col = list.filter((n) => (n.estado_produccion || "pendiente") === e.id).sort((a, b) => String(a.fecha_entrega || "9999").localeCompare(String(b.fecha_entrega || "9999")));
-      return '<div class="kcol"><h4><span>' + e.label + "</span><span>" + col.length + "</span></h4>" + (col.map((n) =>
-        '<div class="kcard"><div class="kc-top"><span class="t-id">' + esc(n.numero) + '</span><span class="' + (isLate(n) ? "late" : "t-sub") + '">' + fmtISO(n.fecha_entrega) + '</span></div><div class="kc-cli">' + esc(n.cliente) + '</div><div class="kc-meta">' + esc(items(n).map((x) => x.detalle).join(" · ").slice(0, 90)) + '</div><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' + pillPago(n) + '<b>' + money(n.total) + '</b></div><div class="kc-btns">' +
-        (i > 0 ? '<button class="btn" data-act="mv" data-id="' + n.id + '" data-to="' + ESTADOS[i - 1].id + '">‹</button>' : "") + '<button class="btn" data-act="view-nota" data-id="' + n.id + '">Ver</button>' + (i < 3 ? '<button class="btn btn-primary" data-act="mv" data-id="' + n.id + '" data-to="' + ESTADOS[i + 1].id + '">›</button>' : "") + "</div></div>").join("") || '<div class="t-sub" style="padding:14px 6px">Vacío</div>') + "</div>";
-    }).join("") + "</div>";
+    const u = S.ui.prod = S.ui.prod || { filtro: "pendiente", orden: "asc", q: "", max: 60 };
+    const FILTROS = [
+      { id: "pendiente", label: "Pendientes", fn: (n) => (n.estado_produccion || "pendiente") === "pendiente" },
+      { id: "produccion", label: "En producción", fn: (n) => n.estado_produccion === "produccion" },
+      { id: "terminado", label: "Terminados", fn: (n) => n.estado_produccion === "terminado" },
+      { id: "entregado", label: "Entregados", fn: (n) => n.estado_produccion === "entregado" },
+      { id: "atrasado", label: "Atrasados", fn: (n) => isLate(n) },
+      { id: "todos", label: "Todos", fn: () => true }
+    ];
+    content().innerHTML =
+      '<div class="toolbar">' + searchBox("fQ", "Buscar cliente, número o detalle…", u.q) +
+      '<select class="inp" id="fOrden" style="width:auto"><option value="asc">Entrega: más próxima primero (ascendente)</option><option value="desc"' + (u.orden === "desc" ? " selected" : "") + ">Entrega: más lejana primero (descendente)</option></select></div>" +
+      '<div class="chips" id="chips"></div><div id="prodHost"></div>';
+    const cmpFecha = (a, b) => String(a.fecha_entrega || "9999-99-99").localeCompare(String(b.fecha_entrega || "9999-99-99")) || (a.numero_int || 0) - (b.numero_int || 0);
+    const draw = () => {
+      const q = norm(u.q);
+      const base = S.notas.filter((n) => !q || norm([n.numero, n.cliente, n.telefono, items(n).map((i) => i.detalle).join(" ")].join(" ")).includes(q));
+      $("#chips").innerHTML = FILTROS.map((f) => '<button class="chip' + (u.filtro === f.id ? " on" : "") + (f.id === "atrasado" ? " warn" : "") + '" data-act="prod-f" data-f="' + f.id + '">' + f.label + " <b>" + base.filter(f.fn).length + "</b></button>").join("");
+      const f = FILTROS.find((x) => x.id === u.filtro) || FILTROS[0];
+      let rows = base.filter(f.fn).sort(cmpFecha); if (u.orden === "desc") rows.reverse();
+      const total = rows.length; rows = rows.slice(0, u.max);
+      $("#prodHost").innerHTML = total ? '<div class="pgrid">' + rows.map((n) => {
+        const i = ESTADOS.findIndex((e) => e.id === (n.estado_produccion || "pendiente"));
+        return '<div class="kcard' + (isLate(n) ? " late-card" : "") + '"><div class="kc-top"><span class="t-id">' + esc(n.numero) + '</span><span class="' + (isLate(n) ? "late" : "t-sub") + '">' + (isLate(n) ? "Atrasada · " : "Entrega ") + fmtISO(n.fecha_entrega) + '</span></div><div class="kc-cli">' + esc(n.cliente) + '</div><div class="kc-meta">' + esc(items(n).map((x) => x.detalle).join(" · ").slice(0, 110)) + '</div><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:6px"><span>' + pillEstado(n.estado_produccion) + " " + pillPago(n) + "</span><b>" + money(n.total) + '</b></div><div class="kc-btns">' +
+          (i > 0 ? '<button class="btn" data-act="mv" data-id="' + n.id + '" data-to="' + ESTADOS[i - 1].id + '" title="Mover a ' + ESTADOS[i - 1].label + '">‹</button>' : "") + '<button class="btn" data-act="view-nota" data-id="' + n.id + '">Ver</button>' + (i < 3 ? '<button class="btn btn-primary" data-act="mv" data-id="' + n.id + '" data-to="' + ESTADOS[i + 1].id + '" title="Mover a ' + ESTADOS[i + 1].label + '">› ' + ESTADOS[i + 1].label + "</button>" : "") + "</div></div>";
+      }).join("") + "</div>" + (total > u.max ? '<div style="text-align:center;margin-top:16px"><button class="btn" data-act="prod-more">Mostrar más (' + (total - u.max) + " restantes)</button></div>" : "") : '<div class="table-wrap"><div class="empty">No hay notas en esta vista.</div></div>';
+    };
+    S.redraw = draw; draw();
+    $("#fQ").addEventListener("input", debounce((e) => { u.q = e.target.value; u.max = 60; draw(); }, 200));
+    $("#fOrden").addEventListener("change", (e) => { u.orden = e.target.value; draw(); });
   }
 
   /* ============================ ESTADÍSTICAS ============================ */
@@ -739,6 +761,8 @@
         case "pdf-nota": await makePDF("nota", getNota(id)); break;
         case "pdf-cot": await makePDF("cot", getCot(id)); break;
         case "mv": await setEstado(id, b.dataset.to); break;
+        case "prod-f": S.ui.prod.filtro = b.dataset.f; S.ui.prod.max = 60; S.redraw(); break;
+        case "prod-more": S.ui.prod.max += 60; S.redraw(); break;
         case "cli": fichaCliente(b.dataset.key); break;
         case "add-item": $("#itemRows").insertAdjacentHTML("beforeend", itemRowHTML()); $$("#itemRows .it-cant").pop().focus(); break;
         case "rm-item": if ($$("#itemRows .item-row").length > 1) { b.closest(".item-row").remove(); recalc(); } break;

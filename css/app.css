@@ -224,3 +224,15 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 @media print{.sidebar,.topbar,.toast-stack{display:none}}
 .kpi>*{position:relative;z-index:1}
 @media (max-width:860px){.kpi .k-val{font-size:20px;word-break:keep-all;white-space:nowrap}}
+/* producción: tarjetas a todo el ancho */
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.chip{border:1px solid var(--line);background:#fff;color:var(--text-soft);border-radius:30px;padding:7px 14px;font-weight:600;font-size:13.5px;transition:all .15s}
+.chip b{background:var(--mist);border-radius:20px;padding:1px 8px;margin-left:4px;font-size:12px}
+.chip:hover{background:var(--mist)}
+.chip.on{background:var(--grad);color:#fff;border-color:transparent;box-shadow:0 4px 12px rgba(6,128,148,.25)}
+.chip.on b{background:rgba(255,255,255,.25);color:#fff}
+.chip.warn:not(.on){color:var(--red);border-color:#f3c3c7}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:16px;width:100%}
+.pgrid .kcard{margin:0;display:flex;flex-direction:column}
+.pgrid .kcard .kc-meta{flex:1}
+.kcard.late-card{border-left:4px solid var(--red)}
