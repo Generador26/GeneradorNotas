@@ -67,17 +67,18 @@
     stats: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 20V10M12 20V4M20 20v-7M2 20h20"/></svg>',
     users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c.8-4 3.6-6 7-6s6.2 2 7 6"/></svg>',
     log: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    config: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>',
     search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>'
   };
   const MODULES = {
-    panel: { label: "Panel", icon: ICON.panel, roles: ["administrador", "editor", "cotizador"] },
     notas: { label: "Notas de venta", icon: ICON.notas, roles: ["administrador", "editor"] },
     cots: { label: "Cotizaciones", icon: ICON.cots, roles: ["administrador", "editor", "cotizador"] },
     clientes: { label: "Clientes", icon: ICON.clientes, roles: ["administrador", "editor", "cotizador"] },
     prod: { label: "Producción", icon: ICON.prod, roles: ["administrador", "editor"] },
     stats: { label: "Estadísticas", icon: ICON.stats, roles: ["administrador"] },
     users: { label: "Usuarios", icon: ICON.users, roles: ["administrador"] },
-    log: { label: "Accesos", icon: ICON.log, roles: ["administrador"] }
+    log: { label: "Accesos", icon: ICON.log, roles: ["administrador"] },
+    config: { label: "Configurar", icon: ICON.config, roles: ["administrador"] }
   };
   const can = (mod) => S.user && MODULES[mod] && MODULES[mod].roles.includes(S.user.rol);
   const isAdmin = () => S.user && S.user.rol === "administrador";
@@ -203,14 +204,15 @@
     $("#sideFoot").innerHTML = "<b>" + esc(S.user.nombre) + "</b>" + esc(ROLES[S.user.rol] || S.user.rol);
     buildNav();
     startRealtime(); resetIdle();
-    go(can("panel") ? "panel" : "cots");
+    go(can("notas") ? "notas" : "cots");
   }
   function buildNav() {
-    $("#sideNav").innerHTML = Object.keys(MODULES).filter(can).map((k) =>
-      '<button class="nav-btn" data-act="nav" data-mod="' + k + '">' + MODULES[k].icon + "<span>" + MODULES[k].label + "</span></button>").join("");
+    const btn = (k) => '<button class="nav-btn" data-act="nav" data-mod="' + k + '">' + MODULES[k].icon + "<span>" + MODULES[k].label + "</span></button>";
+    const main = Object.keys(MODULES).filter((k) => k !== "config" && can(k)).map(btn).join("");
+    $("#sideNav").innerHTML = main + (can("config") ? '<div class="nav-spacer"></div>' + btn("config") : "");
   }
   function go(mod) {
-    if (!can(mod)) mod = "panel";
+    if (!can(mod)) mod = can("notas") ? "notas" : "cots";
     S.view = mod;
     $$(".nav-btn").forEach((b) => b.classList.toggle("active", b.dataset.mod === mod));
     $("#panelTitle").textContent = MODULES[mod].label;
@@ -223,12 +225,13 @@
     // refresco en vivo: no pisar formularios abiertos
     if (soft && !$("#modal").hidden) return;
     destroyCharts();
-    const v = { panel: vPanel, notas: vNotas, cots: vCots, clientes: vClientes, prod: vProd, stats: vStats, users: vUsers, log: vLog }[S.view];
+    const v = { config: vConfig, notas: vNotas, cots: vCots, clientes: vClientes, prod: vProd, stats: vStats, users: vUsers, log: vLog }[S.view];
     if (v) v();
   }
   const content = () => $("#content");
 
-  /* ============================ PANEL ============================ */
+  /* ============================ HELPERS DE ESTADO ============================ */
+  const debe = (n) => r2(Math.max(num(n.saldo), num(n.total) - num(n.a_cuenta)));
   function pillEstado(id) { const e = estadoOf(id); return '<span class="pill ' + e.pill + '">' + e.label + "</span>"; }
   function pillPago(n) {
     const total = num(n.total), saldo = debe(n);
@@ -238,48 +241,6 @@
   }
   function isLate(n) { return n.estado_produccion !== "entregado" && n.fecha_entrega && n.fecha_entrega < hoyISO(); }
 
-  function vPanel() {
-    const now = hoyISO(); const mk = now.slice(0, 7);
-    const delMes = S.notas.filter((n) => monthKey(docDate(n)) === mk);
-    const ventasMes = delMes.reduce((a, n) => a + num(n.total), 0);
-    const cobradoMes = delMes.reduce((a, n) => a + num(n.a_cuenta), 0);
-    const porCobrar = S.notas.reduce((a, n) => a + Math.max(0, num(n.saldo)), 0);
-    const activas = S.notas.filter((n) => n.estado_produccion !== "entregado");
-    const atrasadas = activas.filter(isLate).length;
-    const cotsMes = S.cots.filter((c) => monthKey(docDate(c)) === mk);
-    const cotsMesTotal = cotsMes.reduce((a, c) => a + num(c.total), 0);
-    const proximas = activas.slice().sort((a, b) => String(a.fecha_entrega || "9999").localeCompare(String(b.fecha_entrega || "9999"))).slice(0, 7);
-    const recientes = S.notas.slice(0, 6);
-
-    content().innerHTML =
-      '<div class="grid g-kpi">' +
-      kpi("Ventas del mes", money(ventasMes), delMes.length + " notas", "accent") +
-      kpi("Cobrado del mes", money(cobradoMes), "abonos y pagos") +
-      kpi("Por cobrar", money(porCobrar), "saldo pendiente total") +
-      kpi("En curso", String(activas.length), atrasadas ? '<span class="late">' + atrasadas + " atrasadas</span>" : "todas a tiempo") +
-      "</div>" +
-      '<div class="grid g-2">' +
-      '<div class="card"><h3>Ventas últimos 6 meses</h3><div class="chart-box"><canvas id="chMeses"></canvas></div></div>' +
-      '<div class="card"><h3>Próximas entregas</h3>' + (proximas.length ? proximas.map((n) =>
-        '<div style="display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid var(--line-2)"><div><div class="t-main">' + esc(n.cliente) + '</div><div class="t-sub">Nº ' + esc(n.numero) + " · " + pillEstadoText(n.estado_produccion) + '</div></div><div class="' + (isLate(n) ? "late" : "t-sub") + '" style="white-space:nowrap">' + fmtISO(n.fecha_entrega) + "</div></div>").join("") : '<div class="empty">Sin entregas pendientes</div>') + "</div>" +
-      "</div>" +
-      '<div class="grid g-2e" style="margin-top:18px">' +
-      '<div class="card"><h3>Últimas notas</h3>' + recientes.map((n) =>
-        '<div style="display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid var(--line-2)"><div><span class="t-id">' + esc(n.numero) + '</span> <span class="t-main">' + esc(n.cliente) + '</span><div class="t-sub">' + esc(n.fecha) + " · " + esc(n.usuario || "") + '</div></div><div style="text-align:right"><b>' + money(n.total) + "</b><div>" + pillPago(n) + "</div></div></div>").join("") + "</div>" +
-      '<div class="card"><h3>Cotizaciones del mes</h3><div class="k-val" style="font-family:var(--font-d);font-size:34px;font-weight:900">' + cotsMes.length + '</div><div class="t-sub">por un total de ' + money(cotsMesTotal) + '</div>' +
-      '<div class="modal-actions" style="justify-content:flex-start"><button class="btn btn-primary" data-act="new-cot">+ Nueva cotización</button>' + (can("notas") ? '<button class="btn" data-act="new-nota">+ Nueva nota</button>' : "") + "</div></div>" +
-      "</div>";
-
-    // gráfico
-    const labels = [], vals = []; const d0 = new Date(); d0.setDate(1);
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(d0.getFullYear(), d0.getMonth() - i, 1); const k = monthKey(d);
-      labels.push(MESES[d.getMonth()] + " " + String(d.getFullYear()).slice(2));
-      vals.push(r2(S.notas.filter((n) => monthKey(docDate(n)) === k).reduce((a, n) => a + num(n.total), 0)));
-    }
-    S.charts.push(new Chart($("#chMeses"), { type: "bar", data: { labels, datasets: [{ data: vals, backgroundColor: "#28c4d2", borderRadius: 8, maxBarThickness: 44 }] }, options: chartOpts() }));
-  }
-  const debe = (n) => r2(Math.max(num(n.saldo), num(n.total) - num(n.a_cuenta)));
   const pillEstadoText = (id) => estadoOf(id).label;
   function kpi(l, v, s, cls) { return '<div class="card kpi ' + (cls || "") + '"><div class="k-lbl">' + l + '</div><div class="k-val">' + v + '</div><div class="k-sub">' + s + "</div></div>"; }
   function chartOpts(extra) {
@@ -698,15 +659,138 @@
     draw(); $("#fQ").addEventListener("input", debounce((e) => { u.q = e.target.value; draw(); }, 200));
   }
 
-  /* ============================ PDF ============================ */
-  let logoData = null;
-  async function getLogo() {
-    if (logoData) return logoData;
+
+  /* ---------- datos de la empresa (se guardan como archivo JSON en el almacenamiento) ---------- */
+  const EMP_DEF = { nombre: CFG.empresa.nombre, lema: CFG.empresa.lema, telefono: "", whatsapp: "", direccion: "", email: "", logo_url: "" };
+  let EMP = Object.assign({}, EMP_DEF);
+  const EMP_PATH = "config/empresa.json";
+  async function loadEmpresa() {
     try {
-      const blob = await (await fetch("img/logo-seven-pdf.jpg")).blob();
-      logoData = await new Promise((res) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(blob); });
-    } catch (e) { logoData = null; }
-    return logoData;
+      const r = await fetch(CFG.supabaseUrl + "/storage/v1/object/public/" + CFG.bucket + "/" + EMP_PATH + "?v=" + Date.now(), { cache: "no-store" });
+      if (r.ok) EMP = Object.assign({}, EMP_DEF, await r.json());
+    } catch (e) { /* usa valores por defecto */ }
+    applyBranding();
+  }
+  function applyBranding() {
+    const src = EMP.logo_url || "img/logo-seven.png";
+    $$("#boot img, .login-logo, .side-brand img").forEach((i) => { i.src = src; i.alt = EMP.nombre; });
+    document.title = EMP.nombre + " — CRM";
+  }
+  async function saveEmpresa(datos) {
+    const blob = new Blob([JSON.stringify(datos)], { type: "application/json" });
+    const { error } = await sb.storage.from(CFG.bucket).upload(EMP_PATH, blob, { upsert: true, contentType: "application/json", cacheControl: "10" });
+    if (error) throw error;
+    EMP = Object.assign({}, EMP_DEF, datos); logoCache = { url: null, data: null }; applyBranding();
+  }
+
+  /* ============================ CONFIGURAR ============================ */
+  function vConfig() {
+    content().innerHTML =
+      '<div class="grid g-2e">' +
+      '<div class="card"><h3>Datos de la empresa</h3><p class="t-sub" style="margin:-6px 0 16px">Estos datos se usan en el encabezado y pie del PDF de notas y cotizaciones, y el logo también se muestra en la web.</p>' +
+      '<form id="cfgForm"><div class="field"><label>Nombre de la empresa</label><input class="inp" id="cNombre" value="' + esc(EMP.nombre) + '"></div>' +
+      '<div class="field"><label>Lema</label><input class="inp" id="cLema" value="' + esc(EMP.lema) + '"></div>' +
+      '<div class="form-grid"><div class="field"><label>Teléfono</label><input class="inp" id="cTel" inputmode="tel" value="' + esc(EMP.telefono) + '"></div>' +
+      '<div class="field"><label>WhatsApp</label><input class="inp" id="cWa" inputmode="tel" value="' + esc(EMP.whatsapp) + '"></div></div>' +
+      '<div class="field"><label>Dirección</label><input class="inp" id="cDir" value="' + esc(EMP.direccion) + '"></div>' +
+      '<div class="field"><label>Correo electrónico</label><input class="inp" id="cMail" type="email" value="' + esc(EMP.email) + '"></div>' +
+      '<div class="field"><label>Logo (PNG o JPG)</label><input class="inp" type="file" id="cLogo" accept="image/png,image/jpeg,image/webp"><div style="display:flex;align-items:center;gap:14px;margin-top:10px"><img id="cLogoPrev" src="' + esc(EMP.logo_url || "img/logo-seven.png") + '" alt="" style="width:84px;height:84px;object-fit:contain;border:1px solid var(--line);border-radius:14px;background:#fff"><label style="text-transform:none;letter-spacing:0;font-size:13px;margin:0;display:flex;align-items:center;gap:8px"><input type="checkbox" id="cLogoQuitar" style="width:auto"> Volver al logo original</label></div></div>' +
+      '<div class="modal-actions" style="justify-content:flex-start"><button class="btn btn-primary" type="submit" id="cfgSave">Guardar cambios</button></div></form></div>' +
+      '<div class="card"><h3>Copia de seguridad</h3><p class="t-sub" style="margin:-6px 0 16px">Descarga toda la información de la base: notas de venta, cotizaciones, usuarios, registro de accesos, datos de la empresa y las demás tablas.</p>' +
+      '<div class="modal-actions" style="justify-content:flex-start;margin-top:0"><button class="btn btn-primary" data-act="backup-xlsx">Descargar base completa (Excel)</button><button class="btn" data-act="backup-json">Descargar base completa (JSON)</button></div>' +
+      '<p class="t-sub" id="backupMsg" style="margin-top:14px"></p>' +
+      '<p class="t-sub" style="margin-top:10px">El Excel es para ver y trabajar los datos. El JSON conserva todo tal cual y sirve para restaurar o migrar la base. Por seguridad, las contraseñas de los usuarios no se incluyen. Las imágenes adjuntas se enlazan por su dirección, no se descargan.</p></div></div>';
+    $("#cLogo").addEventListener("change", (e) => { const f = e.target.files[0]; if (f) $("#cLogoPrev").src = URL.createObjectURL(f); });
+    $("#cfgForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = $("#cfgSave"); btn.disabled = true; btn.textContent = "Guardando…";
+      try {
+        const datos = { nombre: $("#cNombre").value.trim() || EMP_DEF.nombre, lema: $("#cLema").value.trim(), telefono: $("#cTel").value.trim(), whatsapp: $("#cWa").value.trim(), direccion: $("#cDir").value.trim(), email: $("#cMail").value.trim(), logo_url: EMP.logo_url };
+        if ($("#cLogoQuitar").checked) datos.logo_url = "";
+        const f = $("#cLogo").files[0];
+        if (f) {
+          if (f.size > 4 * 1024 * 1024) throw new Error("El logo supera 4 MB.");
+          const ext = (f.name.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "");
+          const path = "config/logo-" + Date.now() + "." + ext;
+          const up = await sb.storage.from(CFG.bucket).upload(path, f, { contentType: f.type, upsert: false });
+          if (up.error) throw up.error;
+          datos.logo_url = sb.storage.from(CFG.bucket).getPublicUrl(path).data.publicUrl;
+        }
+        await saveEmpresa(datos);
+        await logAcceso("configuracion_guardada", datos.nombre);
+        toast("Configuración guardada.", "ok"); vConfig();
+      } catch (er) { toast("No se pudo guardar: " + errMsg(er), "err"); btn.disabled = false; btn.textContent = "Guardar cambios"; }
+    });
+  }
+
+  /* ============================ RESPALDO COMPLETO ============================ */
+  const BACKUP_TABLAS = [
+    { t: "notas", cols: "*", orden: "created_at" },
+    { t: "cotizaciones", cols: "*", orden: "created_at" },
+    { t: "usuarios", cols: "id,usuario,nombre,rol,activo,bloqueado,intentos_fallidos,created_at", orden: "created_at" },
+    { t: "accesos", cols: "*", orden: "fecha_hora" },
+    { t: "okinawa_detalle", cols: "*", orden: "id" },
+    { t: "junior_salvatierra_detalle", cols: "*", orden: "id" }
+  ];
+  async function fetchAll(def) {
+    const out = []; const STEP = 1000;
+    for (let from = 0; ; from += STEP) {
+      const { data, error } = await sb.from(def.t).select(def.cols).order(def.orden, { ascending: true }).range(from, from + STEP - 1);
+      if (error) throw error;
+      out.push(...(data || [])); if (!data || data.length < STEP) break;
+    }
+    return out;
+  }
+  const itemsTexto = (arr) => (Array.isArray(arr) ? arr : []).map((i) => i.cant + " x " + i.detalle + " @ " + i.pu).join(" | ");
+  function descargar(blob, nombre) {
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nombre; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+  }
+  async function respaldo(formato) {
+    const msg = $("#backupMsg"); const btns = $$("[data-act^=backup-]"); btns.forEach((b) => (b.disabled = true));
+    try {
+      const datos = {}, avisos = [];
+      for (const def of BACKUP_TABLAS) {
+        if (msg) msg.textContent = "Leyendo " + def.t + "…";
+        try { datos[def.t] = await fetchAll(def); } catch (e) { avisos.push(def.t + ": " + errMsg(e)); }
+      }
+      const stamp = hoyISO(); const resumen = Object.keys(datos).map((k) => k + ": " + datos[k].length).join(" · ");
+      if (formato === "json") {
+        const out = { generado: new Date().toISOString(), sistema: EMP.nombre, empresa: EMP, nota: "Contraseñas de usuarios excluidas.", tablas: datos };
+        descargar(new Blob([JSON.stringify(out, null, 2)], { type: "application/json" }), "base-completa-" + stamp + ".json");
+      } else {
+        if (!window.XLSX) throw new Error("No se cargó la librería de Excel.");
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(Object.keys(EMP).map((k) => ({ campo: k, valor: EMP[k] }))), "empresa");
+        Object.keys(datos).forEach((t) => {
+          const rows = datos[t].map((r) => { const o = Object.assign({}, r); if (Array.isArray(r.items)) { o.items = itemsTexto(r.items); o.items_json = JSON.stringify(r.items); } return o; });
+          XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), t.slice(0, 31));
+        });
+        const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+        descargar(new Blob([buf], { type: "application/octet-stream" }), "base-completa-" + stamp + ".xlsx");
+      }
+      await logAcceso("respaldo_descargado", formato + " · " + resumen);
+      if (msg) msg.textContent = "Listo. " + resumen + (avisos.length ? " · Avisos: " + avisos.join("; ") : "");
+      toast("Copia de seguridad descargada.", "ok");
+    } catch (e) { if (msg) msg.textContent = ""; toast("No se pudo descargar: " + errMsg(e), "err"); }
+    btns.forEach((b) => (b.disabled = false));
+  }
+
+  /* ============================ PDF ============================ */
+  let logoCache = { url: null, data: null };
+  async function getLogo() {
+    const url = EMP.logo_url || "img/logo-seven-pdf.jpg";
+    if (logoCache.url === url && logoCache.data) return logoCache.data;
+    const cargar = (u, bust) => new Promise((res, rej) => { const i = new Image(); i.crossOrigin = "anonymous"; i.onload = () => res(i); i.onerror = rej; i.src = u + (bust ? "?v=" + Date.now() : ""); });
+    try {
+      let img;
+      try { img = await cargar(url, !!EMP.logo_url); } catch (e) { img = await cargar("img/logo-seven-pdf.jpg", false); }
+      const k = Math.min(1, 500 / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement("canvas"); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+      const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+      logoCache = { url, data: { d: c.toDataURL("image/jpeg", 0.9), ratio: c.width / c.height } };
+    } catch (e) { logoCache = { url, data: null }; }
+    return logoCache.data;
   }
   async function makePDF(kind, r) {
     const { jsPDF } = window.jspdf; const doc = new jsPDF({ unit: "mm", format: "a4" });
@@ -715,9 +799,14 @@
     const logo = await getLogo();
     doc.setFillColor(230, 246, 251); doc.rect(0, 0, W, 42, "F");
     doc.setFillColor(40, 196, 210); doc.rect(0, 42, W, 2.2, "F");
-    if (logo) doc.addImage(logo, "JPEG", M, 6, 30, 30);
-    doc.setTextColor(...ink); doc.setFont("helvetica", "bold"); doc.setFontSize(18); doc.text("GIGANTOGRAFÍA SEVEN", M + 36, 18);
-    doc.setFont("helvetica", "italic"); doc.setFontSize(10); doc.setTextColor(...teal); doc.text("Si lo imaginas es real", M + 36, 25);
+    let lw = 0; const lh = 30;
+    if (logo) { lw = Math.min(60, lh * logo.ratio); doc.addImage(logo.d, "JPEG", M, 6, lw, lh); }
+    const tx = M + (logo ? lw + 6 : 0);
+    doc.setTextColor(...ink); doc.setFont("helvetica", "bold"); doc.setFontSize(17); doc.text(doc.splitTextToSize(String(EMP.nombre || "").toUpperCase(), 100)[0], tx, 16);
+    doc.setFont("helvetica", "italic"); doc.setFontSize(10); doc.setTextColor(...teal); doc.text(EMP.lema || "", tx, 22);
+    const contacto = [EMP.direccion, EMP.telefono && "Tel: " + EMP.telefono, EMP.whatsapp && "WhatsApp: " + EMP.whatsapp, EMP.email].filter(Boolean).join("  ·  ");
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(60, 90, 100);
+    if (contacto) doc.text(doc.splitTextToSize(contacto, W - M - 62 - tx + M).slice(0, 3), tx, 28);
     doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(...ink); doc.text(isNota ? "NOTA DE VENTA" : "COTIZACIÓN", W - M, 15, { align: "right" });
     doc.setFontSize(12); doc.setTextColor(200, 50, 60); doc.text("Nº " + r.numero, W - M, 22, { align: "right" });
     doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(60, 90, 100);
@@ -743,7 +832,7 @@
     tot("TOTAL:", "Bs " + num(r.total).toFixed(2), true);
     if (isNota) { tot("A cuenta:", "Bs " + num(r.a_cuenta).toFixed(2)); tot("SALDO:", "Bs " + num(r.saldo).toFixed(2), true); }
     if (isNota && r.observaciones) { y += 2; doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.text("Observaciones:", M, y); doc.setFont("helvetica", "normal"); y += 5; doc.text(doc.splitTextToSize(r.observaciones, 100), M, y); }
-    doc.setFontSize(8.5); doc.setTextColor(110, 138, 146); doc.text("Gigantografía Seven · Si lo imaginas es real", W / 2, 288, { align: "center" });
+    doc.setFontSize(8.5); doc.setTextColor(110, 138, 146); doc.text([EMP.nombre, EMP.lema, EMP.whatsapp && "WhatsApp " + EMP.whatsapp].filter(Boolean).join(" · "), W / 2, 288, { align: "center" });
     doc.save((isNota ? "NOTA" : "COTIZACION") + "-" + r.numero + "-" + String(r.cliente || "").replace(/[^\w]+/g, "_").slice(0, 24) + ".pdf");
     await logAcceso(isNota ? "nota_pdf" : "cotizacion_pdf", "Nº " + r.numero);
   }
@@ -773,6 +862,8 @@
     try {
       switch (a) {
         case "nav": go(b.dataset.mod); break;
+        case "backup-xlsx": await respaldo("xlsx"); break;
+        case "backup-json": await respaldo("json"); break;
         case "close": closeModal(); break;
         case "pg": { const u = S.ui[{ notas: "notas", cots: "cots", clientes: "cli" }[S.view]]; if (u) { u.page += +b.dataset.d; S.redraw(); } break; }
         case "new-nota": openDocForm("nota", null, cliPrefill()); break;
@@ -815,6 +906,7 @@
 
   /* ---------- arranque ---------- */
   (async function init() {
+    await loadEmpresa();
     const s = loadSession();
     if (s && s.usuario) { S.user = s; await enterApp(); } else showLogin("");
   })();

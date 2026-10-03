@@ -236,3 +236,8 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .pgrid .kcard{margin:0;display:flex;flex-direction:column}
 .pgrid .kcard .kc-meta{flex:1}
 .kcard.late-card{border-left:4px solid var(--red)}
+
+.nav-spacer{flex:1;min-height:12px}
+.side-brand img{object-fit:contain;background:#fff}
+.login-logo{object-fit:contain;background:#fff}
+#cfgForm .field input[type=file]{padding:8px}
