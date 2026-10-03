@@ -528,6 +528,7 @@
     const fv = String(n.forma_pago || "").toUpperCase();
     const opts = '<option value="">— Selecciona —</option>' + FORMAS.map((f) => "<option>" + esc(f) + "</option>").join("");
     openModal((entregar ? "Entregar nota Nº " : "Registrar pago — Nº ") + n.numero,
+      (entregar ? '<div class="login-error" role="alert" style="margin-bottom:14px"><b>No se puede entregar todavía.</b> La nota tiene un saldo pendiente de ' + money(n.saldo) + ". Cobra el saldo completo para poder marcarla como entregada.</div>" : "") +
       '<div class="table-wrap" style="margin-bottom:16px"><table><tbody>' +
       '<tr><td>Total</td><td class="num"><b>' + money(n.total) + "</b></td><td></td></tr>" +
       '<tr><td>A cuenta</td><td class="num">' + money(n.a_cuenta) + '</td><td><span class="pill p-teal">' + esc(n.forma_pago || "Sin método") + "</span></td></tr>" +
@@ -536,13 +537,13 @@
       '<form id="pagoForm"><div class="form-grid"><div class="field"><label>Pago del saldo (Bs)</label><input class="inp" id="pMonto" inputmode="decimal" value="' + esc(num(n.saldo)) + '"></div>' +
       '<div class="field"><label>Método de pago del saldo *</label><select class="inp" id="pForma">' + opts + "</select></div></div>" +
       '<div class="modal-actions"><button type="button" class="btn" data-act="close">Cancelar</button>' +
-      (entregar ? '<button type="button" class="btn" id="pSinCobro">Entregar sin cobrar</button>' : "") +
       '<button class="btn btn-primary" type="submit">' + (entregar ? "Cobrar saldo y entregar" : "Registrar pago") + "</button></div></form>");
     $("#pagoForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const m = num($("#pMonto").value), met = $("#pForma").value;
       if (m <= 0) return toast("Ingresa un monto válido.", "err");
       if (!met) return toast("Selecciona el método de pago del saldo.", "err");
+      if (entregar && m < num(n.saldo) - 0.005) return toast("Para entregar debes cobrar el saldo completo (" + money(n.saldo) + ").", "err");
       const aCuenta = r2(num(n.a_cuenta) + m); const saldo = r2(num(n.total) - aCuenta);
       const prev = n.forma_pago_saldo || "";
       const patch = { a_cuenta: aCuenta, saldo: Math.max(0, saldo), pagado_total: saldo <= 0, forma_pago_saldo: prev && !prev.split(" + ").includes(met) ? prev + " + " + met : (prev || met) };
@@ -554,12 +555,10 @@
       if (entregar) await logAcceso("estado_entregado", "Nº " + n.numero);
       closeModal(); toast(entregar ? "Pago registrado y nota entregada." : "Pago registrado.", "ok"); await loadData(); renderView();
     });
-    const sc = $("#pSinCobro");
-    if (sc) sc.addEventListener("click", async () => { closeModal(); await setEstado(id, "entregado", true); });
   }
-  async function setEstado(id, estado, sinCobro) {
+  async function setEstado(id, estado) {
     const n0 = getNota(id);
-    if (estado === "entregado" && n0 && num(n0.saldo) > 0 && !sinCobro) return pagoForm(id, true);
+    if (estado === "entregado" && n0 && num(n0.saldo) > 0) return pagoForm(id, true);
     const { error } = await sb.from("notas").update({ estado_produccion: estado }).eq("id", id);
     if (error) return toast("No se pudo cambiar el estado: " + errMsg(error), "err");
     const n = getNota(id); if (n) n.estado_produccion = estado;
