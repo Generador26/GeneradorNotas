@@ -112,10 +112,17 @@
   function loadSession() { try { return JSON.parse(sessionStorage.getItem("seven-user") || "null"); } catch (e) { return null; } }
 
   async function doLogin(usuario, password) {
-    const { data, error } = await sb.rpc("login_usuario", { p_usuario: usuario, p_password: password });
-    if (error) throw error;
+    usuario = String(usuario || "").trim();
+    // el nombre de usuario se resuelve sin distinguir mayúsculas/minúsculas
+    const like = usuario.replace(/[\\%_]/g, (c) => "\\" + c);
+    const { data: cands, error: e0 } = await sb.from("usuarios").select("id,usuario,nombre,rol,activo,bloqueado,intentos_fallidos").ilike("usuario", like);
+    if (e0) throw new Error("No se pudo consultar usuarios: " + errMsg(e0));
+    const list = cands || [];
+    const u = list.find((x) => x.usuario === usuario) || (list.length === 1 ? list[0] : null);
+    const real = u ? u.usuario : usuario;
+    const { data, error } = await sb.rpc("login_usuario", { p_usuario: real, p_password: password });
+    if (error) throw new Error("Error de conexión con la base: " + errMsg(error));
     const row = Array.isArray(data) ? data[0] : data;
-    const { data: u } = await sb.from("usuarios").select("id,usuario,nombre,rol,activo,bloqueado,intentos_fallidos").eq("usuario", usuario).maybeSingle();
     if (row && row.ok && u) {
       if (u.intentos_fallidos) await sb.from("usuarios").update({ intentos_fallidos: 0 }).eq("id", u.id);
       return { usuario: u.usuario, nombre: u.nombre || u.usuario, rol: u.rol || "editor", id: u.id };
