@@ -2,6 +2,7 @@
 (function () {
   "use strict";
   const CFG = window.SEVEN_CONFIG;
+  const APP_VERSION = "2026-10-03 e";
   const $ = (s, r) => (r || document).querySelector(s);
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 
@@ -201,7 +202,7 @@
     $("#boot").hidden = true; $("#app-view").hidden = false;
     $("#userAv").textContent = (S.user.nombre || "?").trim().charAt(0).toUpperCase();
     $("#userName").textContent = S.user.nombre;
-    $("#sideFoot").innerHTML = "<b>" + esc(S.user.nombre) + "</b>" + esc(ROLES[S.user.rol] || S.user.rol);
+    $("#sideFoot").innerHTML = "<b>" + esc(S.user.nombre) + "</b>" + esc(ROLES[S.user.rol] || S.user.rol) + '<div style="margin-top:6px;opacity:.55;font-size:11px">Versión ' + APP_VERSION + "</div>";
     buildNav();
     startRealtime(); resetIdle();
     go(can("notas") ? "notas" : "cots");
