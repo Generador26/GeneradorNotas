@@ -170,8 +170,8 @@
   /* ---------- datos ---------- */
   async function loadData() {
     const [n, c] = await Promise.all([
-      sb.from("notas").select("*").order("numero_int", { ascending: false, nullsFirst: false }).limit(5000),
-      sb.from("cotizaciones").select("*").order("numero_int", { ascending: false, nullsFirst: false }).limit(5000)
+      sb.from("notas").select("*").order("created_at", { ascending: false }).limit(5000),
+      sb.from("cotizaciones").select("*").order("created_at", { ascending: false }).limit(5000)
     ]);
     if (n.error) throw n.error;
     if (c.error) throw c.error;
@@ -366,10 +366,10 @@
     }));
   }
   function vClientes() {
-    const u = S.ui.cli = S.ui.cli || { q: "", orden: "comprado", page: 1 };
+    const u = S.ui.cli = S.ui.cli || { q: "", orden: "reciente", page: 1 };
     const all = buildClientes();
     content().innerHTML = '<div class="toolbar">' + searchBox("fQ", "Buscar cliente o teléfono…", u.q) +
-      '<select class="inp" id="fOrden" style="width:auto"><option value="comprado">Mayor compra</option><option value="saldo"' + (u.orden === "saldo" ? " selected" : "") + '>Mayor deuda</option><option value="reciente"' + (u.orden === "reciente" ? " selected" : "") + '>Más reciente</option><option value="nombre"' + (u.orden === "nombre" ? " selected" : "") + '>Nombre A–Z</option></select>' +
+      '<select class="inp" id="fOrden" style="width:auto"><option value="comprado"' + (u.orden === "comprado" ? " selected" : "") + '>Mayor compra</option><option value="saldo"' + (u.orden === "saldo" ? " selected" : "") + '>Mayor deuda</option><option value="reciente"' + (u.orden === "reciente" ? " selected" : "") + '>Último cliente primero</option><option value="nombre"' + (u.orden === "nombre" ? " selected" : "") + '>Nombre A–Z</option></select>' +
       '<span class="t-sub">' + all.length + " clientes</span></div><div id=\"listHost\"></div>";
     const draw = () => {
       const q = norm(u.q);
@@ -560,7 +560,7 @@
 
   /* ============================ PRODUCCIÓN ============================ */
   function vProd() {
-    const u = S.ui.prod = S.ui.prod || { filtro: "pendiente", orden: "asc", q: "", max: 60 };
+    const u = S.ui.prod = S.ui.prod || { filtro: "pendiente", orden: "nuevo", q: "" };
     const FILTROS = [
       { id: "pendiente", label: "Pendientes", fn: (n) => (n.estado_produccion || "pendiente") === "pendiente" },
       { id: "produccion", label: "En producción", fn: (n) => n.estado_produccion === "produccion" },
@@ -571,24 +571,27 @@
     ];
     content().innerHTML =
       '<div class="toolbar">' + searchBox("fQ", "Buscar cliente, número o detalle…", u.q) +
-      '<select class="inp" id="fOrden" style="width:auto"><option value="asc">Entrega: más próxima primero (ascendente)</option><option value="desc"' + (u.orden === "desc" ? " selected" : "") + ">Entrega: más lejana primero (descendente)</option></select></div>" +
+      '<select class="inp" id="fOrden" style="width:auto">' + [["nuevo", "Último creado primero"], ["viejo", "Primero creado primero"], ["asc", "Entrega: más próxima primero"], ["desc", "Entrega: más lejana primero"]].map((o) => '<option value="' + o[0] + '"' + (u.orden === o[0] ? " selected" : "") + ">" + o[1] + "</option>").join("") + "</select></div>" +
       '<div class="chips" id="chips"></div><div id="prodHost"></div>';
+    const LIMITE = 30;
     const cmpFecha = (a, b) => String(a.fecha_entrega || "9999-99-99").localeCompare(String(b.fecha_entrega || "9999-99-99")) || (a.numero_int || 0) - (b.numero_int || 0);
     const draw = () => {
       const q = norm(u.q);
       const base = S.notas.filter((n) => !q || norm([n.numero, n.cliente, n.telefono, items(n).map((i) => i.detalle).join(" ")].join(" ")).includes(q));
       $("#chips").innerHTML = FILTROS.map((f) => '<button class="chip' + (u.filtro === f.id ? " on" : "") + (f.id === "atrasado" ? " warn" : "") + '" data-act="prod-f" data-f="' + f.id + '">' + f.label + " <b>" + base.filter(f.fn).length + "</b></button>").join("");
       const f = FILTROS.find((x) => x.id === u.filtro) || FILTROS[0];
-      let rows = base.filter(f.fn).sort(cmpFecha); if (u.orden === "desc") rows.reverse();
-      const total = rows.length; rows = rows.slice(0, u.max);
+      const cmpCreado = (a, b) => String(b.created_at || "").localeCompare(String(a.created_at || ""));
+      let rows = base.filter(f.fn);
+      if (u.orden === "nuevo") rows.sort(cmpCreado); else if (u.orden === "viejo") rows.sort((a, b) => cmpCreado(b, a)); else { rows.sort(cmpFecha); if (u.orden === "desc") rows.reverse(); }
+      const total = rows.length; rows = rows.slice(0, LIMITE);
       $("#prodHost").innerHTML = total ? '<div class="pgrid">' + rows.map((n) => {
         const i = ESTADOS.findIndex((e) => e.id === (n.estado_produccion || "pendiente"));
         return '<div class="kcard' + (isLate(n) ? " late-card" : "") + '"><div class="kc-top"><span class="t-id">' + esc(n.numero) + '</span><span class="' + (isLate(n) ? "late" : "t-sub") + '">' + (isLate(n) ? "Atrasada · " : "Entrega ") + fmtISO(n.fecha_entrega) + '</span></div><div class="kc-cli">' + esc(n.cliente) + '</div><div class="kc-meta">' + esc(items(n).map((x) => x.detalle).join(" · ").slice(0, 110)) + '</div><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:6px"><span>' + pillEstado(n.estado_produccion) + " " + pillPago(n) + "</span><b>" + money(n.total) + '</b></div><div class="kc-btns">' +
           (i > 0 ? '<button class="btn" data-act="mv" data-id="' + n.id + '" data-to="' + ESTADOS[i - 1].id + '" title="Mover a ' + ESTADOS[i - 1].label + '">‹</button>' : "") + '<button class="btn" data-act="view-nota" data-id="' + n.id + '">Ver</button>' + (i < 3 ? '<button class="btn btn-primary" data-act="mv" data-id="' + n.id + '" data-to="' + ESTADOS[i + 1].id + '" title="Mover a ' + ESTADOS[i + 1].label + '">› ' + ESTADOS[i + 1].label + "</button>" : "") + "</div></div>";
-      }).join("") + "</div>" + (total > u.max ? '<div style="text-align:center;margin-top:16px"><button class="btn" data-act="prod-more">Mostrar más (' + (total - u.max) + " restantes)</button></div>" : "") : '<div class="table-wrap"><div class="empty">No hay notas en esta vista.</div></div>';
+      }).join("") + "</div>" + (total > LIMITE ? '<div class="t-sub" style="text-align:center;margin-top:16px">Mostrando las primeras ' + LIMITE + " de " + total + ". El resto sigue guardado en la base de datos; búscalo con el buscador o en Notas de venta.</div>" : "") : '<div class="table-wrap"><div class="empty">No hay notas en esta vista.</div></div>';
     };
     S.redraw = draw; draw();
-    $("#fQ").addEventListener("input", debounce((e) => { u.q = e.target.value; u.max = 60; draw(); }, 200));
+    $("#fQ").addEventListener("input", debounce((e) => { u.q = e.target.value; draw(); }, 200));
     $("#fOrden").addEventListener("change", (e) => { u.orden = e.target.value; draw(); });
   }
 
@@ -761,8 +764,7 @@
         case "pdf-nota": await makePDF("nota", getNota(id)); break;
         case "pdf-cot": await makePDF("cot", getCot(id)); break;
         case "mv": await setEstado(id, b.dataset.to); break;
-        case "prod-f": S.ui.prod.filtro = b.dataset.f; S.ui.prod.max = 60; S.redraw(); break;
-        case "prod-more": S.ui.prod.max += 60; S.redraw(); break;
+        case "prod-f": S.ui.prod.filtro = b.dataset.f; S.redraw(); break;
         case "cli": fichaCliente(b.dataset.key); break;
         case "add-item": $("#itemRows").insertAdjacentHTML("beforeend", itemRowHTML()); $$("#itemRows .it-cant").pop().focus(); break;
         case "rm-item": if ($$("#itemRows .item-row").length > 1) { b.closest(".item-row").remove(); recalc(); } break;
