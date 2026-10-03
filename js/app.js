@@ -2,7 +2,7 @@
 (function () {
   "use strict";
   const CFG = window.SEVEN_CONFIG;
-  const APP_VERSION = "2026-10-03 e";
+  const APP_VERSION = "2026-10-03 f";
   const $ = (s, r) => (r || document).querySelector(s);
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 
@@ -57,6 +57,7 @@
     { id: "entregado", label: "Entregado", pill: "p-green" }
   ];
   const estadoOf = (id) => ESTADOS.find((e) => e.id === id) || ESTADOS[0];
+  const IVA = 0.13;
   const FORMAS = ["EFECTIVO", "QR", "TRANSFERENCIA", "DEPÓSITO", "TARJETA", "MIXTO"];
 
   const ICON = {
@@ -397,7 +398,7 @@
       "</div>" +
       '<div class="lbl" style="margin-top:6px">Detalle</div><div class="items-head"><span>Cant.</span><span>Descripción</span><span>P. unit.</span><span style="text-align:right">Subtotal</span><span></span></div><div id="itemRows">' + its.map(itemRowHTML).join("") + "</div>" +
       '<button type="button" class="btn btn-sm" data-act="add-item">+ Agregar ítem</button>' +
-      '<div class="totals"><div class="tr"><span>Total</span><b id="tTotal">Bs 0.00</b></div>' +
+      '<div class="totals">' + (isNota ? '<div class="tr"><span>Subtotal</span><span id="tSub">Bs 0.00</span></div><div class="tr" id="rIva"><span>IVA 13%</span><span id="tIva">Bs 0.00</span></div>' : "") + '<div class="tr"><span>Total</span><b id="tTotal">Bs 0.00</b></div>' +
       (isNota ? '<div class="tr"><span>A cuenta</span><input class="inp" id="fACuenta" inputmode="decimal" style="width:130px;text-align:right" value="' + esc(r.a_cuenta == null ? "" : r.a_cuenta) + '"></div><div class="tr big"><span>Saldo</span><span id="tSaldo">Bs 0.00</span></div>' : '<div class="tr big"><span>Total</span><span id="tTotal2">Bs 0.00</span></div>') + "</div>" +
       (isNota ? '<div class="field" style="margin-top:14px"><label>Observaciones</label><textarea class="inp" id="fObs">' + esc(r.observaciones || "") + "</textarea></div>" : "") +
       '<div class="form-grid" style="margin-top:8px">' + imgField("fImgMed", "Imagen de medidas", r.imagen_medidas_url) + imgField("fImgMon", "Imagen de montaje", r.imagen_montaje_url) + "</div>" +
@@ -417,6 +418,8 @@
     let total = 0;
     $$("#itemRows .item-row").forEach((row) => { const s = num($(".it-cant", row).value) * num($(".it-pu", row).value); total += s; $(".sub", row).textContent = money(s); });
     total = r2(total);
+    const fa = $("#fFactura");
+    if (fa) { const con = fa.value === "CON FACTURA"; const iva = con ? r2(total * IVA) : 0; $("#tSub").textContent = money(total); $("#tIva").textContent = money(iva); $("#rIva").style.display = con ? "" : "none"; total = r2(total + iva); }
     const t = $("#tTotal"); if (t) t.textContent = money(total);
     const t2 = $("#tTotal2"); if (t2) t2.textContent = money(total);
     const ac = $("#fACuenta"); if (ac) { const s = $("#tSaldo"); const saldo = r2(total - num(ac.value)); s.textContent = money(saldo); s.style.color = saldo > 0 ? "var(--red)" : "var(--green)"; }
@@ -444,7 +447,8 @@
     if (!its.length || !its.some((i) => i.detalle && num(i.cant) > 0)) return toast("Agrega al menos un ítem con cantidad y detalle.", "err");
     const btn = $("#docSave"); btn.disabled = true; btn.textContent = "Guardando…";
     try {
-      const total = itemsTotal(its);
+      let total = itemsTotal(its);
+      if (isNota && $("#fFactura").value === "CON FACTURA") total = r2(total + r2(total * IVA));
       const old = id ? (isNota ? getNota(id) : getCot(id)) : null;
       const imgM = await uploadImg("fImgMed", kind + "s"); const imgN = await uploadImg("fImgMon", kind + "s");
       const base = { cliente, telefono: $("#fTel").value.trim(), total, items: its, imagen_medidas_url: imgM || (old ? old.imagen_medidas_url : prefill && prefill.imagen_medidas_url) || null, imagen_montaje_url: imgN || (old ? old.imagen_montaje_url : prefill && prefill.imagen_montaje_url) || null };
@@ -955,7 +959,8 @@
     doc.setDrawColor(...teal); doc.line(M, y, W - M, y); y += 8;
     if (y > 240) { doc.addPage(); y = 20; }
     const tot = (a, b, bold) => { doc.setFont("helvetica", bold ? "bold" : "normal"); doc.setFontSize(bold ? 12 : 10); doc.text(a, 130, y); doc.text(b, W - M - 3, y, { align: "right" }); y += bold ? 8 : 6; };
-    tot("TOTAL:", "Bs " + num(r.total).toFixed(2), true);
+    if (isNota && r.factura === "CON FACTURA") { const sub = r2(num(r.total) / (1 + IVA)); tot("Subtotal:", "Bs " + sub.toFixed(2)); tot("IVA 13%:", "Bs " + r2(num(r.total) - sub).toFixed(2)); }
+    tot(isNota ? "TOTAL " + (r.factura === "CON FACTURA" ? "CON FACTURA:" : "SIN FACTURA:") : "TOTAL:", "Bs " + num(r.total).toFixed(2), true);
     if (isNota) { tot("A cuenta:", "Bs " + num(r.a_cuenta).toFixed(2)); tot("SALDO:", "Bs " + num(r.saldo).toFixed(2), true); }
     if (isNota && r.observaciones) { y += 2; doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.text("Observaciones:", M, y); doc.setFont("helvetica", "normal"); y += 5; doc.text(doc.splitTextToSize(r.observaciones, 100), M, y); }
     doc.setFontSize(8.5); doc.setTextColor(110, 138, 146); doc.text([E.nombre, E.lema, E.whatsapp && "WhatsApp " + E.whatsapp].filter(Boolean).join(" · "), W / 2, 288, { align: "center" });
