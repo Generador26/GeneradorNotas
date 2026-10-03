@@ -428,7 +428,7 @@
         : '<div class="field"><label>Validez (días)</label><input class="inp" id="fValidez" inputmode="numeric" value="' + esc(r.validez || "3") + '"></div>') +
       (isNota
         ? '<div class="field"><label>Factura</label><select class="inp" id="fFactura"><option>SIN FACTURA</option><option' + (r.factura === "CON FACTURA" ? " selected" : "") + ">CON FACTURA</option></select></div>" +
-          '<div class="field"><label>Forma de pago</label><select class="inp" id="fForma"><option value="">—</option>' + formas.map((f) => "<option" + (f.toUpperCase() === fv ? " selected" : "") + ">" + esc(f) + "</option>").join("") + "</select></div>" +
+          '<div class="field"><label>Forma de pago (a cuenta)</label><select class="inp" id="fForma"><option value="">—</option>' + formas.map((f) => "<option" + (f.toUpperCase() === fv ? " selected" : "") + ">" + esc(f) + "</option>").join("") + "</select></div>" +
           '<div class="field"><label>Fecha de entrega</label><input class="inp" type="date" id="fEntrega" value="' + esc(r.fecha_entrega || "") + '"></div>'
         : '<div class="field"><label>Tiempo de entrega</label><input class="inp" id="fEntregaTxt" placeholder="ej. 5 días hábiles" value="' + esc(r.entrega || "") + '"></div>') +
       "</div>" +
@@ -515,7 +515,7 @@
     const n = getNota(id); if (!n) return;
     const its = items(n);
     openModal("Nota de venta Nº " + n.numero,
-      '<div class="detail"><dl><dt>Cliente</dt><dd>' + esc(n.cliente) + "</dd><dt>Teléfono</dt><dd>" + esc(n.telefono || "—") + "</dd><dt>NIT / CI</dt><dd>" + esc(n.nitci || "—") + "</dd><dt>Fecha</dt><dd>" + esc(n.fecha) + " · " + esc(n.usuario || "") + "</dd><dt>Factura</dt><dd>" + esc(n.factura || "—") + "</dd><dt>Forma de pago</dt><dd>" + esc(n.forma_pago || "—") + "</dd><dt>Entrega</dt><dd class=\"" + (isLate(n) ? "late" : "") + '">' + fmtISO(n.fecha_entrega) + "</dd><dt>Estado</dt><dd>" + pillEstado(n.estado_produccion) + " " + pillPago(n) + "</dd>" + (n.observaciones ? "<dt>Observaciones</dt><dd>" + esc(n.observaciones).replace(/\n/g, "<br>") + "</dd>" : "") + "</dl></div>" +
+      '<div class="detail"><dl><dt>Cliente</dt><dd>' + esc(n.cliente) + "</dd><dt>Teléfono</dt><dd>" + esc(n.telefono || "—") + "</dd><dt>NIT / CI</dt><dd>" + esc(n.nitci || "—") + "</dd><dt>Fecha</dt><dd>" + esc(n.fecha) + " · " + esc(n.usuario || "") + "</dd><dt>Factura</dt><dd>" + esc(n.factura || "—") + "</dd><dt>Método a cuenta</dt><dd>" + esc(n.forma_pago || "—") + "</dd>" + (n.forma_pago_saldo ? "<dt>Método del saldo</dt><dd>" + esc(n.forma_pago_saldo) + "</dd>" : "") + "<dt>Entrega</dt><dd class=\"" + (isLate(n) ? "late" : "") + '">' + fmtISO(n.fecha_entrega) + "</dd><dt>Estado</dt><dd>" + pillEstado(n.estado_produccion) + " " + pillPago(n) + "</dd>" + (n.observaciones ? "<dt>Observaciones</dt><dd>" + esc(n.observaciones).replace(/\n/g, "<br>") + "</dd>" : "") + "</dl></div>" +
       '<div class="table-wrap" style="margin:16px 0"><table><thead><tr><th class="num">Cant.</th><th>Detalle</th><th class="num">P. unit.</th><th class="num">Subtotal</th></tr></thead><tbody>' + its.map((i) => '<tr><td class="num">' + esc(i.cant) + "</td><td>" + esc(i.detalle) + '</td><td class="num">' + money(i.pu) + '</td><td class="num">' + money(num(i.cant) * num(i.pu)) + "</td></tr>").join("") + "</tbody></table></div>" +
       '<div class="totals"><div class="tr"><span>Total</span><b>' + money(n.total) + '</b></div><div class="tr"><span>A cuenta</span><span>' + money(n.a_cuenta) + '</span></div><div class="tr big"><span>Saldo</span><span class="' + (num(n.saldo) > 0 ? "money-neg" : "money-ok") + '">' + money(n.saldo) + "</span></div></div>" +
       ((n.imagen_medidas_url || n.imagen_montaje_url) ? '<div class="form-grid" style="margin-top:12px">' + [n.imagen_medidas_url, n.imagen_montaje_url].filter(Boolean).map((u) => '<a href="' + esc(u) + '" target="_blank" rel="noopener"><img class="thumb" style="max-height:200px" src="' + esc(u) + '" alt=""></a>').join("") + "</div>" : "") +
@@ -523,22 +523,43 @@
       (num(n.saldo) > 0 ? '<button class="btn" data-act="pago-nota" data-id="' + n.id + '">Registrar pago</button>' : "") +
       '<button class="btn" data-act="pdf-nota" data-id="' + n.id + '">PDF</button><button class="btn" data-act="edit-nota" data-id="' + n.id + '">Editar</button>' + (isAdmin() ? '<button class="btn btn-danger" data-act="del-nota" data-id="' + n.id + '">Eliminar</button>' : "") + "</div>", true);
   }
-  function pagoForm(id) {
+  function pagoForm(id, entregar) {
     const n = getNota(id); if (!n) return;
-    openModal("Registrar pago — Nº " + n.numero,
-      '<p style="margin:0 0 14px">Saldo pendiente: <b class="money-neg">' + money(n.saldo) + '</b></p><form id="pagoForm"><div class="field"><label>Monto recibido (Bs)</label><input class="inp" id="pMonto" inputmode="decimal" value="' + esc(num(n.saldo)) + '"></div><div class="modal-actions"><button type="button" class="btn" data-act="close">Cancelar</button><button class="btn btn-primary" type="submit">Registrar</button></div></form>');
+    const fv = String(n.forma_pago || "").toUpperCase();
+    const opts = '<option value="">— Selecciona —</option>' + FORMAS.map((f) => "<option>" + esc(f) + "</option>").join("");
+    openModal((entregar ? "Entregar nota Nº " : "Registrar pago — Nº ") + n.numero,
+      '<div class="table-wrap" style="margin-bottom:16px"><table><tbody>' +
+      '<tr><td>Total</td><td class="num"><b>' + money(n.total) + "</b></td><td></td></tr>" +
+      '<tr><td>A cuenta</td><td class="num">' + money(n.a_cuenta) + '</td><td><span class="pill p-teal">' + esc(n.forma_pago || "Sin método") + "</span></td></tr>" +
+      (n.forma_pago_saldo ? '<tr><td>Pagos posteriores</td><td></td><td><span class="pill p-teal">' + esc(n.forma_pago_saldo) + "</span></td></tr>" : "") +
+      '<tr><td>Saldo pendiente</td><td class="num money-neg"><b>' + money(n.saldo) + "</b></td><td></td></tr></tbody></table></div>" +
+      '<form id="pagoForm"><div class="form-grid"><div class="field"><label>Pago del saldo (Bs)</label><input class="inp" id="pMonto" inputmode="decimal" value="' + esc(num(n.saldo)) + '"></div>' +
+      '<div class="field"><label>Método de pago del saldo *</label><select class="inp" id="pForma">' + opts + "</select></div></div>" +
+      '<div class="modal-actions"><button type="button" class="btn" data-act="close">Cancelar</button>' +
+      (entregar ? '<button type="button" class="btn" id="pSinCobro">Entregar sin cobrar</button>' : "") +
+      '<button class="btn btn-primary" type="submit">' + (entregar ? "Cobrar saldo y entregar" : "Registrar pago") + "</button></div></form>");
     $("#pagoForm").addEventListener("submit", async (e) => {
       e.preventDefault();
-      const m = num($("#pMonto").value);
+      const m = num($("#pMonto").value), met = $("#pForma").value;
       if (m <= 0) return toast("Ingresa un monto válido.", "err");
+      if (!met) return toast("Selecciona el método de pago del saldo.", "err");
       const aCuenta = r2(num(n.a_cuenta) + m); const saldo = r2(num(n.total) - aCuenta);
-      const { error } = await sb.from("notas").update({ a_cuenta: aCuenta, saldo: Math.max(0, saldo), pagado_total: saldo <= 0 }).eq("id", id);
+      const prev = n.forma_pago_saldo || "";
+      const patch = { a_cuenta: aCuenta, saldo: Math.max(0, saldo), pagado_total: saldo <= 0, forma_pago_saldo: prev && !prev.split(" + ").includes(met) ? prev + " + " + met : (prev || met) };
+      if (!n.forma_pago) patch.forma_pago = met;
+      if (entregar) patch.estado_produccion = "entregado";
+      const { error } = await sb.from("notas").update(patch).eq("id", id);
       if (error) return toast("No se pudo registrar: " + errMsg(error), "err");
-      await logAcceso("pago_registrado", "Nº " + n.numero + " · " + money(m));
-      closeModal(); toast("Pago registrado.", "ok"); await loadData(); renderView();
+      await logAcceso("pago_registrado", "Nº " + n.numero + " · " + money(m) + " · " + met);
+      if (entregar) await logAcceso("estado_entregado", "Nº " + n.numero);
+      closeModal(); toast(entregar ? "Pago registrado y nota entregada." : "Pago registrado.", "ok"); await loadData(); renderView();
     });
+    const sc = $("#pSinCobro");
+    if (sc) sc.addEventListener("click", async () => { closeModal(); await setEstado(id, "entregado", true); });
   }
-  async function setEstado(id, estado) {
+  async function setEstado(id, estado, sinCobro) {
+    const n0 = getNota(id);
+    if (estado === "entregado" && n0 && num(n0.saldo) > 0 && !sinCobro) return pagoForm(id, true);
     const { error } = await sb.from("notas").update({ estado_produccion: estado }).eq("id", id);
     if (error) return toast("No se pudo cambiar el estado: " + errMsg(error), "err");
     const n = getNota(id); if (n) n.estado_produccion = estado;
@@ -703,7 +724,7 @@
     let y = 54; doc.setTextColor(...ink); doc.setFontSize(10);
     const line = (a, b, x) => { doc.setFont("helvetica", "bold"); doc.text(a, x, y); doc.setFont("helvetica", "normal"); doc.text(String(b || "—"), x + 24, y); };
     line("Cliente:", r.cliente, M); line("Teléfono:", r.telefono, 125); y += 6;
-    if (isNota) { line("NIT / CI:", r.nitci, M); line("Factura:", r.factura, 125); y += 6; line("Forma pago:", r.forma_pago, M); line("Entrega:", fmtISO(r.fecha_entrega), 125); y += 6; }
+    if (isNota) { line("NIT / CI:", r.nitci, M); line("Factura:", r.factura, 125); y += 6; line("Pago a cta.:", r.forma_pago, M); line("Entrega:", fmtISO(r.fecha_entrega), 125); y += 6; if (r.forma_pago_saldo) { line("Pago saldo:", r.forma_pago_saldo, M); y += 6; } }
     else { line("Validez:", (r.validez || "—") + " días", M); line("Entrega:", r.entrega, 125); y += 6; }
     y += 4;
     const head = () => { doc.setFillColor(...teal); doc.rect(M, y, W - 2 * M, 8, "F"); doc.setTextColor(255); doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.text("CANT.", M + 3, y + 5.5); doc.text("DETALLE", M + 24, y + 5.5); doc.text("P. UNIT.", 150, y + 5.5, { align: "right" }); doc.text("SUBTOTAL", W - M - 3, y + 5.5, { align: "right" }); y += 8; doc.setTextColor(...ink); };
