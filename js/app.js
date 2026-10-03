@@ -514,7 +514,7 @@
       if (entregar) patch.estado_produccion = "entregado";
       const { error } = await sb.from("notas").update(patch).eq("id", id);
       if (error) return toast("No se pudo registrar: " + errMsg(error), "err");
-      await logAcceso("pago_registrado", "Nº " + n.numero + " · " + money(m) + " · " + met);
+      await logAcceso("pago_saldo", ["Nº " + n.numero, m.toFixed(2), met, n.cliente, n.id].join(" | "));
       if (entregar) await logAcceso("estado_entregado", "Nº " + n.numero);
       closeModal(); toast(entregar ? "Pago registrado y nota entregada." : "Pago registrado.", "ok"); await loadData(); renderView();
     });
@@ -579,7 +579,7 @@
   }
 
   /* ============================ ESTADÍSTICAS ============================ */
-  function vStats() {
+  function vStatsGraficos() {
     const u = S.ui.stats = S.ui.stats || { rango: "12m" };
     const now = new Date(); let desde = null;
     if (u.rango === "12m") desde = new Date(now.getFullYear(), now.getMonth() - 11, 1);
@@ -591,8 +591,8 @@
     const cobrado = N.reduce((a, n) => a + num(n.a_cuenta), 0);
     const convNums = new Set(S.notas.map((n) => (/Cotizaci[oó]n N[º°o]\s*(\d+)/i.exec(n.observaciones || "") || [])[1]).filter(Boolean));
     const convertidas = C.filter((c) => convNums.has(c.numero)).length;
-    content().innerHTML =
-      '<div class="toolbar"><select class="inp" id="fRango" style="width:auto"><option value="mes">Este mes</option><option value="12m">Últimos 12 meses</option><option value="anio">Este año</option><option value="todo">Todo el historial</option></select></div>' +
+    $("#stGr").innerHTML =
+      '<h3 style="margin:26px 0 12px;font-size:18px">Resumen del período</h3><div class="toolbar"><select class="inp" id="fRango" style="width:auto"><option value="mes">Este mes</option><option value="12m">Últimos 12 meses</option><option value="anio">Este año</option><option value="todo">Todo el historial</option></select></div>' +
       '<div class="grid g-kpi">' + kpi("Ventas", money(ventas), N.length + " notas", "accent") + kpi("Ticket promedio", money(N.length ? ventas / N.length : 0), "por nota") + kpi("Cobrado", money(cobrado), ventas ? Math.round((cobrado / ventas) * 100) + "% de lo vendido" : "—") + kpi("Cotizaciones → nota", C.length ? Math.round((convertidas / C.length) * 100) + "%" : "—", convertidas + " de " + C.length) + "</div>" +
       '<div class="grid g-2"><div class="card"><h3>Ventas por mes</h3><div class="chart-box"><canvas id="c1"></canvas></div></div><div class="card"><h3>Forma de pago</h3><div class="chart-box"><canvas id="c2"></canvas></div></div></div>' +
       '<div class="grid g-2e" style="margin-top:18px"><div class="card"><h3>Top 10 clientes</h3><div class="chart-box"><canvas id="c3"></canvas></div></div><div class="card"><h3>Ventas por usuario</h3><div class="chart-box"><canvas id="c4"></canvas></div></div></div>';
@@ -608,6 +608,108 @@
     S.charts.push(new Chart($("#c3"), { type: "bar", data: { labels: top.map((t) => t[0].slice(0, 22)), datasets: [{ data: top.map((t) => r2(t[1])), backgroundColor: "#068094", borderRadius: 6 }] }, options: chartOpts({ indexAxis: "y", scales: { x: { beginAtZero: true, grid: { color: "#e5f1f4" } }, y: { grid: { display: false } } } }) }));
     const byU = {}; N.forEach((n) => { const k = n.usuario || "—"; byU[k] = (byU[k] || 0) + num(n.total); });
     S.charts.push(new Chart($("#c4"), { type: "bar", data: { labels: Object.keys(byU), datasets: [{ data: Object.values(byU).map(r2), backgroundColor: PAL, borderRadius: 8, maxBarThickness: 50 }] }, options: chartOpts() }));
+  }
+
+
+  /* ============================ ESTADÍSTICAS ============================ */
+  const ymdLocal = (ts) => new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(new Date(ts));
+  function docKey(r) {
+    const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(r.fecha || "").trim());
+    if (m) return m[3] + "-" + m[2].padStart(2, "0") + "-" + m[1].padStart(2, "0");
+    return r.created_at ? ymdLocal(r.created_at) : "";
+  }
+  const addDays = (iso, d) => { const x = new Date(iso + "T12:00:00"); x.setDate(x.getDate() + d); return x.toISOString().slice(0, 10); };
+  const metodo = (m) => String(m || "").trim().toUpperCase() || "SIN MÉTODO";
+  async function loadPagos() {
+    const { data, error } = await sb.from("accesos").select("accion,detalle,fecha_hora,usuario").in("accion", ["pago_saldo", "pago_registrado"]).order("fecha_hora", { ascending: true }).limit(5000);
+    if (error) throw error;
+    return (data || []).map((r) => {
+      let numero = "", monto = 0, met = "", cliente = "", id = "";
+      if (r.detalle && r.detalle.includes(" | ")) { const p = r.detalle.split(" | "); numero = (p[0] || "").replace(/^Nº\s*/, ""); monto = num(p[1]); met = p[2] || ""; cliente = p[3] || ""; id = p[4] || ""; }
+      else { const m = /Nº\s*(\d+)\s*·\s*Bs\s*([\d.,]+)\s*·\s*(.+)$/.exec(r.detalle || ""); if (m) { numero = m[1]; monto = num(m[2].replace(/\./g, "").replace(",", ".")); met = m[3]; } }
+      return { numero, monto, metodo: metodo(met), cliente, id, ts: r.fecha_hora, dia: ymdLocal(r.fecha_hora), usuario: r.usuario };
+    }).filter((x) => x.monto > 0);
+  }
+  const pagosDe = (n, pagos) => pagos.filter((p) => (p.id ? p.id === n.id : p.numero === n.numero));
+
+  async function vStats() {
+    const u = S.ui.st = S.ui.st || { modo: "hoy", fecha: "", tipo: "notas", q: "", soloDeuda: false };
+    content().innerHTML = '<div class="empty">Cargando estadísticas…</div>';
+    let pagos = [], avisoPagos = "";
+    try { pagos = await loadPagos(); } catch (e) { avisoPagos = "No se pudo leer el registro de cobros: " + errMsg(e); }
+    if (S.view !== "stats") return;
+    const hoy = hoyISO(), ayer = addDays(hoy, -1);
+
+    // saldo total por cobrar (todas las notas, estén o no entregadas)
+    const deudoras = S.notas.filter((n) => debe(n) > 0.005);
+    const totalDeuda = r2(deudoras.reduce((a, n) => a + debe(n), 0));
+    const deudaEntregadas = deudoras.filter((n) => n.estado_produccion === "entregado").length;
+
+    // cobros de hoy por método: a cuenta inicial de notas de hoy + saldos cobrados hoy
+    const cob = {}; const add = (m, k, v) => { const key = metodo(m); cob[key] = cob[key] || { acuenta: 0, saldo: 0 }; cob[key][k] += v; };
+    const notasHoy = S.notas.filter((n) => docKey(n) === hoy);
+    notasHoy.forEach((n) => { const cobrado = pagosDe(n, pagos).reduce((a, p) => a + p.monto, 0); const inicial = Math.max(0, num(n.a_cuenta) - cobrado); if (inicial > 0) add(n.forma_pago, "acuenta", inicial); });
+    pagos.filter((p) => p.dia === hoy).forEach((p) => add(p.metodo, "saldo", p.monto));
+    const filasCob = Object.keys(cob).sort();
+    const totCob = filasCob.reduce((a, k) => a + cob[k].acuenta + cob[k].saldo, 0);
+    const cotsHoy = S.cots.filter((c) => docKey(c) === hoy).length;
+
+    content().innerHTML =
+      (avisoPagos ? '<div class="login-error" style="margin-bottom:14px">' + esc(avisoPagos) + "</div>" : "") +
+      '<div class="grid g-kpi">' +
+      kpi("Saldo total por cobrar", money(totalDeuda), "de todas las notas de venta", "accent") +
+      kpi("Notas con deuda", String(deudoras.length), deudaEntregadas + " ya entregadas · " + (deudoras.length - deudaEntregadas) + " en proceso") +
+      kpi("Cobrado hoy", money(totCob), filasCob.length ? filasCob.join(" · ") : "sin cobros hoy") +
+      kpi("Hoy se hicieron", notasHoy.length + " notas", cotsHoy + " cotizaciones") + "</div>" +
+      '<div class="grid g-2e"><div class="card"><h3>Cobros de hoy por método de pago</h3>' + (filasCob.length ?
+        '<div class="table-wrap" style="box-shadow:none"><table><thead><tr><th>Método</th><th class="num">A cuenta</th><th class="num">Saldo cobrado</th><th class="num">Total</th></tr></thead><tbody>' +
+        filasCob.map((k) => '<tr><td><span class="pill p-teal">' + esc(k) + '</span></td><td class="num">' + money(cob[k].acuenta) + '</td><td class="num">' + money(cob[k].saldo) + '</td><td class="num"><b>' + money(cob[k].acuenta + cob[k].saldo) + "</b></td></tr>").join("") +
+        '</tbody><tfoot><tr><td><b>Total</b></td><td class="num"><b>' + money(filasCob.reduce((a, k) => a + cob[k].acuenta, 0)) + '</b></td><td class="num"><b>' + money(filasCob.reduce((a, k) => a + cob[k].saldo, 0)) + '</b></td><td class="num"><b>' + money(totCob) + "</b></td></tr></tfoot></table></div>" : '<div class="empty">Todavía no hay cobros registrados hoy.</div>') +
+      '<p class="t-sub" style="margin:10px 0 0">A cuenta = lo recibido al hacer la nota hoy. Saldo cobrado = pagos de saldo registrados hoy.</p></div>' +
+      '<div class="card"><h3>Consultar por fecha</h3><div class="chips" id="stModo"></div><div class="toolbar" style="margin-bottom:10px"><input class="inp" type="date" id="stFecha" style="width:auto" max="' + hoy + '" value="' + esc(u.fecha || "") + '"><div class="chips" style="margin:0" id="stTipo"></div></div><div id="stFechaRes"></div></div></div>' +
+      '<div class="card" style="margin-top:18px"><h3>Buscar nota o cliente (deuda, método de pago y fechas)</h3><div class="toolbar">' + searchBox("stQ", "Número de nota, nombre o teléfono del cliente…", u.q) + '<label style="display:flex;align-items:center;gap:8px;font-size:14px;margin:0"><input type="checkbox" id="stDeuda"' + (u.soloDeuda ? " checked" : "") + '> Solo con deuda</label></div><div id="stBuscarRes"></div></div>' +
+      '<div id="stGr"></div>';
+
+    const drawFecha = () => {
+      const iso = u.modo === "hoy" ? hoy : u.modo === "ayer" ? ayer : u.fecha;
+      $("#stModo").innerHTML = [["hoy", "Hoy"], ["ayer", "Ayer"], ["fecha", "Fecha específica"]].map((m) => '<button class="chip' + (u.modo === m[0] ? " on" : "") + '" data-st-modo="' + m[0] + '">' + m[1] + "</button>").join("");
+      $("#stTipo").innerHTML = [["notas", "Notas de venta"], ["cots", "Cotizaciones"]].map((m) => '<button class="chip' + (u.tipo === m[0] ? " on" : "") + '" data-st-tipo="' + m[0] + '">' + m[1] + "</button>").join("");
+      if (!iso) return ($("#stFechaRes").innerHTML = '<div class="empty">Elige una fecha.</div>');
+      const rows = (u.tipo === "notas" ? S.notas : S.cots).filter((r) => docKey(r) === iso);
+      const tot = rows.reduce((a, r) => a + num(r.total), 0);
+      const lbl = fmtISO(iso);
+      $("#stFechaRes").innerHTML = '<p class="t-sub" style="margin:0 0 8px"><b>' + rows.length + "</b> " + (u.tipo === "notas" ? "notas de venta" : "cotizaciones") + " del " + lbl + " · total <b>" + money(tot) + "</b></p>" + (rows.length ?
+        '<div class="table-wrap" style="box-shadow:none;max-height:340px"><table><thead><tr><th>Nº</th><th>Cliente</th><th class="num">Total</th>' + (u.tipo === "notas" ? '<th class="num">Saldo</th><th>Método</th>' : "<th>Entrega</th>") + "<th></th></tr></thead><tbody>" +
+        rows.map((r) => '<tr><td class="t-id">' + esc(r.numero) + '</td><td class="t-main">' + esc(r.cliente) + '</td><td class="num">' + money(r.total) + "</td>" + (u.tipo === "notas" ? '<td class="num ' + (debe(r) > 0.005 ? "money-neg" : "") + '">' + money(debe(r)) + "</td><td>" + esc(r.forma_pago || "—") + "</td>" : "<td>" + esc(r.entrega || "—") + "</td>") + '<td><button class="btn btn-sm" data-act="' + (u.tipo === "notas" ? "view-nota" : "edit-cot") + '" data-id="' + r.id + '">Ver</button></td></tr>').join("") + "</tbody></table></div>" : '<div class="empty">No hay registros en esa fecha.</div>');
+    };
+    const drawBuscar = () => {
+      const q = norm(u.q); const host = $("#stBuscarRes");
+      if (!q) return (host.innerHTML = '<div class="empty">Escribe un número de nota o el nombre del cliente.</div>');
+      const dq = q.replace(/\D/g, "").replace(/^0+/, "");
+      let rows = S.notas.filter((n) => norm(n.cliente).includes(q) || (dq && (String(n.numero_int) === dq || String(n.numero).replace(/^0+/, "") === dq)) || (dq.length >= 5 && phoneDigits(n.telefono).includes(dq)));
+      if (u.soloDeuda) rows = rows.filter((n) => debe(n) > 0.005);
+      rows.sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+      const clientes = new Set(rows.map((n) => norm(n.cliente)));
+      const deuda = r2(rows.reduce((a, n) => a + debe(n), 0));
+      const resumen = '<p class="t-sub" style="margin:0 0 8px"><b>' + rows.length + "</b> notas" + (clientes.size === 1 && rows.length ? " de <b>" + esc(rows[0].cliente) + "</b>" : "") + " · deuda total <b class=\"" + (deuda > 0 ? "money-neg" : "money-ok") + '">' + money(deuda) + "</b></p>";
+      host.innerHTML = resumen + (rows.length ? '<div class="table-wrap" style="box-shadow:none;max-height:480px"><table><thead><tr><th>Nº</th><th>Cliente</th><th class="num">Total</th><th>A cuenta (monto · método · fecha)</th><th class="num">Saldo debe</th><th>Saldo pagado (monto · método · fecha)</th><th>Estado</th><th></th></tr></thead><tbody>' +
+        rows.slice(0, 40).map((n) => {
+          const ps = pagosDe(n, pagos); const cobrado = ps.reduce((a, p) => a + p.monto, 0); const inicial = Math.max(0, num(n.a_cuenta) - cobrado);
+          const cuenta = inicial > 0 ? money(inicial) + " · " + esc(n.forma_pago || "—") + " · " + fmtISO(docKey(n)) : "Sin pago a cuenta";
+          const d = debe(n);
+          const pagado = ps.length ? ps.map((p) => money(p.monto) + " · " + esc(p.metodo) + " · " + fmtISO(p.dia)).join("<br>") : (d <= 0.005 ? '<span class="t-sub">Sin registro de cobro (pagado antes de este sistema)</span>' : '<span class="t-sub">Aún no pagó el saldo</span>');
+          return '<tr><td class="t-id">' + esc(n.numero) + '</td><td><div class="t-main">' + esc(n.cliente) + '</div><div class="t-sub">' + esc(n.telefono || "") + '</div></td><td class="num">' + money(n.total) + "</td><td>" + cuenta + '</td><td class="num ' + (d > 0.005 ? "money-neg" : "money-ok") + '"><b>' + money(d) + "</b></td><td>" + pagado + "</td><td>" + pillEstado(n.estado_produccion) + '</td><td><button class="btn btn-sm" data-act="view-nota" data-id="' + n.id + '">Ver</button></td></tr>';
+        }).join("") + "</tbody></table></div>" + (rows.length > 40 ? '<p class="t-sub">Mostrando 40 de ' + rows.length + ". Afina la búsqueda.</p>" : "") : '<div class="empty">Sin resultados.</div>');
+    };
+    drawFecha(); drawBuscar();
+    $("#stFecha").addEventListener("change", (e) => { u.fecha = e.target.value; u.modo = "fecha"; drawFecha(); });
+    $("#stQ").addEventListener("input", debounce((e) => { u.q = e.target.value; drawBuscar(); }, 200));
+    $("#stDeuda").addEventListener("change", (e) => { u.soloDeuda = e.target.checked; drawBuscar(); });
+    content().onclick = (ev) => {
+      const m = ev.target.closest("[data-st-modo]"), t = ev.target.closest("[data-st-tipo]");
+      if (m) { u.modo = m.dataset.stModo; drawFecha(); } if (t) { u.tipo = t.dataset.stTipo; drawFecha(); }
+    };
+    vStatsGraficos();
   }
 
   /* ============================ USUARIOS / ACCESOS ============================ */
