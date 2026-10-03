@@ -231,8 +231,8 @@
   /* ============================ PANEL ============================ */
   function pillEstado(id) { const e = estadoOf(id); return '<span class="pill ' + e.pill + '">' + e.label + "</span>"; }
   function pillPago(n) {
-    const total = num(n.total), saldo = num(n.saldo);
-    if (n.pagado_total || (total > 0 && saldo <= 0)) return '<span class="pill p-green">Pagado</span>';
+    const total = num(n.total), saldo = debe(n);
+    if (total > 0 && saldo <= 0.005) return '<span class="pill p-green">Pagado</span>';
     if (num(n.a_cuenta) > 0) return '<span class="pill p-amber">Abonado</span>';
     return '<span class="pill p-red">Sin pago</span>';
   }
@@ -279,6 +279,7 @@
     }
     S.charts.push(new Chart($("#chMeses"), { type: "bar", data: { labels, datasets: [{ data: vals, backgroundColor: "#28c4d2", borderRadius: 8, maxBarThickness: 44 }] }, options: chartOpts() }));
   }
+  const debe = (n) => r2(Math.max(num(n.saldo), num(n.total) - num(n.a_cuenta)));
   const pillEstadoText = (id) => estadoOf(id).label;
   function kpi(l, v, s, cls) { return '<div class="card kpi ' + (cls || "") + '"><div class="k-lbl">' + l + '</div><div class="k-val">' + v + '</div><div class="k-sub">' + s + "</div></div>"; }
   function chartOpts(extra) {
@@ -520,21 +521,22 @@
       '<div class="totals"><div class="tr"><span>Total</span><b>' + money(n.total) + '</b></div><div class="tr"><span>A cuenta</span><span>' + money(n.a_cuenta) + '</span></div><div class="tr big"><span>Saldo</span><span class="' + (num(n.saldo) > 0 ? "money-neg" : "money-ok") + '">' + money(n.saldo) + "</span></div></div>" +
       ((n.imagen_medidas_url || n.imagen_montaje_url) ? '<div class="form-grid" style="margin-top:12px">' + [n.imagen_medidas_url, n.imagen_montaje_url].filter(Boolean).map((u) => '<a href="' + esc(u) + '" target="_blank" rel="noopener"><img class="thumb" style="max-height:200px" src="' + esc(u) + '" alt=""></a>').join("") + "</div>" : "") +
       '<div class="modal-actions"><select class="inp" style="width:auto" data-sel="estado" data-id="' + n.id + '">' + ESTADOS.map((e) => '<option value="' + e.id + '"' + (e.id === n.estado_produccion ? " selected" : "") + ">" + e.label + "</option>").join("") + "</select>" +
-      (num(n.saldo) > 0 ? '<button class="btn" data-act="pago-nota" data-id="' + n.id + '">Registrar pago</button>' : "") +
+      (debe(n) > 0.005 ? '<button class="btn" data-act="pago-nota" data-id="' + n.id + '">Registrar pago</button>' : "") +
       '<button class="btn" data-act="pdf-nota" data-id="' + n.id + '">PDF</button><button class="btn" data-act="edit-nota" data-id="' + n.id + '">Editar</button>' + (isAdmin() ? '<button class="btn btn-danger" data-act="del-nota" data-id="' + n.id + '">Eliminar</button>' : "") + "</div>", true);
   }
   function pagoForm(id, entregar) {
     const n = getNota(id); if (!n) return;
+    const deuda = debe(n);
     const fv = String(n.forma_pago || "").toUpperCase();
     const opts = '<option value="">— Selecciona —</option>' + FORMAS.map((f) => "<option>" + esc(f) + "</option>").join("");
     openModal((entregar ? "Entregar nota Nº " : "Registrar pago — Nº ") + n.numero,
-      (entregar ? '<div class="login-error" role="alert" style="margin-bottom:14px"><b>No se puede entregar todavía.</b> La nota tiene un saldo pendiente de ' + money(n.saldo) + ". Cobra el saldo completo para poder marcarla como entregada.</div>" : "") +
+      (entregar ? '<div class="login-error" role="alert" style="margin-bottom:14px"><b>No se puede entregar todavía.</b> La nota tiene un saldo pendiente de ' + money(deuda) + ". Cobra el saldo completo para poder marcarla como entregada.</div>" : "") +
       '<div class="table-wrap" style="margin-bottom:16px"><table><tbody>' +
       '<tr><td>Total</td><td class="num"><b>' + money(n.total) + "</b></td><td></td></tr>" +
       '<tr><td>A cuenta</td><td class="num">' + money(n.a_cuenta) + '</td><td><span class="pill p-teal">' + esc(n.forma_pago || "Sin método") + "</span></td></tr>" +
       (n.forma_pago_saldo ? '<tr><td>Pagos posteriores</td><td></td><td><span class="pill p-teal">' + esc(n.forma_pago_saldo) + "</span></td></tr>" : "") +
-      '<tr><td>Saldo pendiente</td><td class="num money-neg"><b>' + money(n.saldo) + "</b></td><td></td></tr></tbody></table></div>" +
-      '<form id="pagoForm"><div class="form-grid"><div class="field"><label>Pago del saldo (Bs)</label><input class="inp" id="pMonto" inputmode="decimal" value="' + esc(num(n.saldo)) + '"></div>' +
+      '<tr><td>Saldo pendiente</td><td class="num money-neg"><b>' + money(deuda) + "</b></td><td></td></tr></tbody></table></div>" +
+      '<form id="pagoForm"><div class="form-grid"><div class="field"><label>Pago del saldo (Bs)</label><input class="inp" id="pMonto" inputmode="decimal" value="' + esc(deuda) + '"></div>' +
       '<div class="field"><label>Método de pago del saldo *</label><select class="inp" id="pForma">' + opts + "</select></div></div>" +
       '<div class="modal-actions"><button type="button" class="btn" data-act="close">Cancelar</button>' +
       '<button class="btn btn-primary" type="submit">' + (entregar ? "Cobrar saldo y entregar" : "Registrar pago") + "</button></div></form>");
@@ -543,7 +545,7 @@
       const m = num($("#pMonto").value), met = $("#pForma").value;
       if (m <= 0) return toast("Ingresa un monto válido.", "err");
       if (!met) return toast("Selecciona el método de pago del saldo.", "err");
-      if (entregar && m < num(n.saldo) - 0.005) return toast("Para entregar debes cobrar el saldo completo (" + money(n.saldo) + ").", "err");
+      if (entregar && m < deuda - 0.005) return toast("Para entregar debes cobrar el saldo completo (" + money(deuda) + ").", "err");
       const aCuenta = r2(num(n.a_cuenta) + m); const saldo = r2(num(n.total) - aCuenta);
       const prev = n.forma_pago_saldo || "";
       const patch = { a_cuenta: aCuenta, saldo: Math.max(0, saldo), pagado_total: saldo <= 0, forma_pago_saldo: prev && !prev.split(" + ").includes(met) ? prev + " + " + met : (prev || met) };
@@ -558,7 +560,7 @@
   }
   async function setEstado(id, estado) {
     const n0 = getNota(id);
-    if (estado === "entregado" && n0 && num(n0.saldo) > 0) return pagoForm(id, true);
+    if (estado === "entregado" && n0 && debe(n0) > 0.005) return pagoForm(id, true);
     const { error } = await sb.from("notas").update({ estado_produccion: estado }).eq("id", id);
     if (error) return toast("No se pudo cambiar el estado: " + errMsg(error), "err");
     const n = getNota(id); if (n) n.estado_produccion = estado;
