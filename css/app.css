@@ -247,3 +247,4 @@ td.num{white-space:nowrap}tfoot td{border-top:2px solid var(--line);background:v
 .offline-overlay[hidden]{display:none}
 .offline-box{max-width:460px}.offline-ico{font-size:64px;margin-bottom:12px}
 .offline-box h2{margin:0 0 12px;font-size:26px;letter-spacing:.5px}.offline-box p{margin:0;opacity:.9;line-height:1.5}
+.inp.autofilled{background:#e6f9fb}

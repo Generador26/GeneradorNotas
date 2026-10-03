@@ -2,7 +2,7 @@
 (function () {
   "use strict";
   const CFG = window.SEVEN_CONFIG;
-  const APP_VERSION = "2026-10-03 j";
+  const APP_VERSION = "2026-10-03 k";
   const $ = (s, r) => (r || document).querySelector(s);
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 
@@ -410,10 +410,21 @@
       '<div class="form-grid" style="margin-top:8px">' + imgField("fImgMed", "Imagen de medidas", r.imagen_medidas_url) + imgField("fImgMon", "Imagen de montaje", r.imagen_montaje_url) + "</div>" +
       '<div class="modal-actions"><button type="button" class="btn" data-act="close">Cancelar</button><button type="submit" class="btn btn-primary" id="docSave">Guardar</button></div></form>', true);
     recalc();
-    $("#fCliente").addEventListener("change", (e) => {
-      const m = S.notas.concat(S.cots).find((x) => x.cliente === e.target.value && x.telefono);
-      if (m && !$("#fTel").value) { $("#fTel").value = m.telefono; const nit = $("#fNit"); if (nit && !nit.value && m.nitci) nit.value = m.nitci; }
-    });
+    const norm = (x) => String(x || "").trim().toLowerCase();
+    const todos = S.notas.concat(S.cots).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+    const autofill = (campo, valor, porTel) => {
+      const v = norm(valor); if (!v) return;
+      const m = todos.filter((x) => porTel ? norm(x.telefono) === v : norm(x.cliente) === v);
+      if (!m.length) return;
+      const tel = (m.find((x) => x.telefono) || {}).telefono, nit = (m.find((x) => x.nitci) || {}).nitci, nom = m[0].cliente;
+      const put = (el, val) => { if (el && val && !el.value.trim()) { el.value = val; el.classList.add("autofilled"); } };
+      if (porTel) put($("#fCliente"), nom);
+      else { $("#fCliente").value = nom; put($("#fTel"), tel); }
+      put($("#fNit"), nit);
+    };
+    $("#fCliente").addEventListener("input", (e) => autofill("c", e.target.value, false));
+    $("#fCliente").addEventListener("change", (e) => autofill("c", e.target.value, false));
+    $("#fTel").addEventListener("change", (e) => autofill("t", e.target.value, true));
     $("#docForm").addEventListener("input", recalc);
     $("#docForm").addEventListener("submit", (e) => { e.preventDefault(); saveDoc(); });
   }
