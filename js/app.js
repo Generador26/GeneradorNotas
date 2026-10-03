@@ -209,7 +209,7 @@
   function buildNav() {
     const btn = (k) => '<button class="nav-btn" data-act="nav" data-mod="' + k + '">' + MODULES[k].icon + "<span>" + MODULES[k].label + "</span></button>";
     const main = Object.keys(MODULES).filter((k) => k !== "config" && can(k)).map(btn).join("");
-    $("#sideNav").innerHTML = main + (can("config") ? '<div class="nav-spacer"></div>' + btn("config") : "");
+    $("#sideNav").innerHTML = main + (can("config") ? btn("config") : "");
   }
   function go(mod) {
     if (!can(mod)) mod = can("notas") ? "notas" : "cots";
@@ -797,11 +797,17 @@
       '<div class="field"><label>Dirección</label><input class="inp" id="cDir" value="' + esc(EMP.direccion) + '"></div>' +
       '<div class="field"><label>Correo electrónico</label><input class="inp" id="cMail" type="email" value="' + esc(EMP.email) + '"></div>' +
       '<div class="field"><label>Logo (PNG o JPG)</label><input class="inp" type="file" id="cLogo" accept="image/png,image/jpeg,image/webp"><div style="display:flex;align-items:center;gap:14px;margin-top:10px"><img id="cLogoPrev" src="' + esc(EMP.logo_url || "img/logo-seven.png") + '" alt="" style="width:84px;height:84px;object-fit:contain;border:1px solid var(--line);border-radius:14px;background:#fff"><label style="text-transform:none;letter-spacing:0;font-size:13px;margin:0;display:flex;align-items:center;gap:8px"><input type="checkbox" id="cLogoQuitar" style="width:auto"> Volver al logo original</label></div></div>' +
-      '<div class="modal-actions" style="justify-content:flex-start"><button class="btn btn-primary" type="submit" id="cfgSave">Guardar cambios</button></div></form></div>' +
+      '<div class="modal-actions" style="justify-content:flex-start"><button class="btn" type="button" data-act="cfg-preview">Ver cómo queda el PDF</button><button class="btn btn-primary" type="submit" id="cfgSave">Guardar cambios</button></div></form></div>' +
       '<div class="card"><h3>Copia de seguridad</h3><p class="t-sub" style="margin:-6px 0 16px">Descarga toda la información de la base: notas de venta, cotizaciones, usuarios, registro de accesos, datos de la empresa y las demás tablas.</p>' +
       '<div class="modal-actions" style="justify-content:flex-start;margin-top:0"><button class="btn btn-primary" data-act="backup-xlsx">Descargar base completa (Excel)</button><button class="btn" data-act="backup-json">Descargar base completa (JSON)</button></div>' +
       '<p class="t-sub" id="backupMsg" style="margin-top:14px"></p>' +
       '<p class="t-sub" style="margin-top:10px">El Excel es para ver y trabajar los datos. El JSON conserva todo tal cual y sirve para restaurar o migrar la base. Por seguridad, las contraseñas de los usuarios no se incluyen. Las imágenes adjuntas se enlazan por su dirección, no se descargan.</p></div></div>';
+    S.cfgPreview = async (tipo) => {
+      const E = leerFormEmpresa(); const modelo = (tipo === "cot" ? S.cots : S.notas).find((x) => items(x).length) || ejemploDoc(tipo);
+      const { doc, name } = await buildPDF(tipo, modelo, E);
+      const url = URL.createObjectURL(doc.output("blob"));
+      S.cfgPdfUrl = url; S.cfgPdfName = name; return url;
+    };
     $("#cLogo").addEventListener("change", (e) => { const f = e.target.files[0]; if (f) $("#cLogoPrev").src = URL.createObjectURL(f); });
     $("#cfgForm").addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -823,6 +829,22 @@
         toast("Configuración guardada.", "ok"); vConfig();
       } catch (er) { toast("No se pudo guardar: " + errMsg(er), "err"); btn.disabled = false; btn.textContent = "Guardar cambios"; }
     });
+  }
+
+  function leerFormEmpresa() {
+    const E = { nombre: $("#cNombre").value.trim() || EMP_DEF.nombre, lema: $("#cLema").value.trim(), telefono: $("#cTel").value.trim(), whatsapp: $("#cWa").value.trim(), direccion: $("#cDir").value.trim(), email: $("#cMail").value.trim(), logo_url: EMP.logo_url };
+    if ($("#cLogoQuitar").checked) E.logo_url = "";
+    const f = $("#cLogo").files[0]; if (f) E.logo_url = URL.createObjectURL(f);
+    return E;
+  }
+  const ejemploDoc = (tipo) => ({ numero: "000001", fecha: hoyDMY(), cliente: "Cliente de ejemplo", telefono: "70000000", nitci: "1234567", factura: "SIN FACTURA", forma_pago: "QR", fecha_entrega: hoyISO(), validez: "3", entrega: "5 días hábiles", total: 450, a_cuenta: 200, saldo: 250, observaciones: "Vista previa con datos de ejemplo", items: [{ cant: "2", detalle: "Banner 150x100 cm con instalación", pu: "150" }, { cant: "1", detalle: "Adhesivo de logo 60x60 cm", pu: "150" }] });
+  async function vistaPreviaPDF(tipo) {
+    try {
+      openModal("Vista previa del PDF", '<div class="chips"><button class="chip' + (tipo === "nota" ? " on" : "") + '" data-act="cfg-preview" data-t="nota">Nota de venta</button><button class="chip' + (tipo === "cot" ? " on" : "") + '" data-act="cfg-preview" data-t="cot">Cotización</button></div><p class="t-sub" style="margin:0 0 10px">Así se verá con los datos que escribiste (todavía sin guardar). Usa una nota real de ejemplo.</p><div id="pdfBox" class="empty">Generando…</div>', true);
+      const url = await S.cfgPreview(tipo);
+      $("#pdfBox").className = "";
+      $("#pdfBox").innerHTML = '<iframe title="Vista previa del PDF" src="' + url + '#toolbar=0&navpanes=0" style="width:100%;height:68vh;border:1px solid var(--line);border-radius:12px;background:#fff"></iframe><div class="modal-actions"><a class="btn" href="' + url + '" target="_blank" rel="noopener">Abrir en pestaña nueva</a><a class="btn" href="' + url + '" download="' + esc(S.cfgPdfName) + '">Descargar esta vista previa</a><button class="btn btn-primary" data-act="close">Cerrar y seguir editando</button></div>';
+    } catch (e) { toast("No se pudo generar la vista previa: " + errMsg(e), "err"); }
   }
 
   /* ============================ RESPALDO COMPLETO ============================ */
@@ -880,13 +902,14 @@
 
   /* ============================ PDF ============================ */
   let logoCache = { url: null, data: null };
-  async function getLogo() {
-    const url = EMP.logo_url || "img/logo-seven-pdf.jpg";
+  async function getLogo(E) {
+    E = E || EMP;
+    const url = E.logo_url || "img/logo-seven-pdf.jpg";
     if (logoCache.url === url && logoCache.data) return logoCache.data;
     const cargar = (u, bust) => new Promise((res, rej) => { const i = new Image(); i.crossOrigin = "anonymous"; i.onload = () => res(i); i.onerror = rej; i.src = u + (bust ? "?v=" + Date.now() : ""); });
     try {
       let img;
-      try { img = await cargar(url, !!EMP.logo_url); } catch (e) { img = await cargar("img/logo-seven-pdf.jpg", false); }
+      try { img = await cargar(url, !!E.logo_url && !/^blob:/.test(url)); } catch (e) { img = await cargar("img/logo-seven-pdf.jpg", false); }
       const k = Math.min(1, 500 / Math.max(img.naturalWidth, img.naturalHeight));
       const c = document.createElement("canvas"); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
       const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
@@ -894,19 +917,19 @@
     } catch (e) { logoCache = { url, data: null }; }
     return logoCache.data;
   }
-  async function makePDF(kind, r) {
+  async function buildPDF(kind, r, E) {
     const { jsPDF } = window.jspdf; const doc = new jsPDF({ unit: "mm", format: "a4" });
     const isNota = kind === "nota"; const W = 210, M = 14;
     const teal = [6, 128, 148], ink = [6, 50, 59];
-    const logo = await getLogo();
+    const logo = await getLogo(E);
     doc.setFillColor(230, 246, 251); doc.rect(0, 0, W, 42, "F");
     doc.setFillColor(40, 196, 210); doc.rect(0, 42, W, 2.2, "F");
     let lw = 0; const lh = 30;
     if (logo) { lw = Math.min(60, lh * logo.ratio); doc.addImage(logo.d, "JPEG", M, 6, lw, lh); }
     const tx = M + (logo ? lw + 6 : 0);
-    doc.setTextColor(...ink); doc.setFont("helvetica", "bold"); doc.setFontSize(17); doc.text(doc.splitTextToSize(String(EMP.nombre || "").toUpperCase(), 100)[0], tx, 16);
-    doc.setFont("helvetica", "italic"); doc.setFontSize(10); doc.setTextColor(...teal); doc.text(EMP.lema || "", tx, 22);
-    const contacto = [EMP.direccion, EMP.telefono && "Tel: " + EMP.telefono, EMP.whatsapp && "WhatsApp: " + EMP.whatsapp, EMP.email].filter(Boolean).join("  ·  ");
+    doc.setTextColor(...ink); doc.setFont("helvetica", "bold"); doc.setFontSize(17); doc.text(doc.splitTextToSize(String(E.nombre || "").toUpperCase(), 100)[0], tx, 16);
+    doc.setFont("helvetica", "italic"); doc.setFontSize(10); doc.setTextColor(...teal); doc.text(E.lema || "", tx, 22);
+    const contacto = [E.direccion, E.telefono && "Tel: " + E.telefono, E.whatsapp && "WhatsApp: " + E.whatsapp, E.email].filter(Boolean).join("  ·  ");
     doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(60, 90, 100);
     if (contacto) doc.text(doc.splitTextToSize(contacto, W - M - 62 - tx + M).slice(0, 3), tx, 28);
     doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(...ink); doc.text(isNota ? "NOTA DE VENTA" : "COTIZACIÓN", W - M, 15, { align: "right" });
@@ -934,9 +957,13 @@
     tot("TOTAL:", "Bs " + num(r.total).toFixed(2), true);
     if (isNota) { tot("A cuenta:", "Bs " + num(r.a_cuenta).toFixed(2)); tot("SALDO:", "Bs " + num(r.saldo).toFixed(2), true); }
     if (isNota && r.observaciones) { y += 2; doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.text("Observaciones:", M, y); doc.setFont("helvetica", "normal"); y += 5; doc.text(doc.splitTextToSize(r.observaciones, 100), M, y); }
-    doc.setFontSize(8.5); doc.setTextColor(110, 138, 146); doc.text([EMP.nombre, EMP.lema, EMP.whatsapp && "WhatsApp " + EMP.whatsapp].filter(Boolean).join(" · "), W / 2, 288, { align: "center" });
-    doc.save((isNota ? "NOTA" : "COTIZACION") + "-" + r.numero + "-" + String(r.cliente || "").replace(/[^\w]+/g, "_").slice(0, 24) + ".pdf");
-    await logAcceso(isNota ? "nota_pdf" : "cotizacion_pdf", "Nº " + r.numero);
+    doc.setFontSize(8.5); doc.setTextColor(110, 138, 146); doc.text([E.nombre, E.lema, E.whatsapp && "WhatsApp " + E.whatsapp].filter(Boolean).join(" · "), W / 2, 288, { align: "center" });
+    return { doc, name: (isNota ? "NOTA" : "COTIZACION") + "-" + r.numero + "-" + String(r.cliente || "").replace(/[^\w]+/g, "_").slice(0, 24) + ".pdf" };
+  }
+  async function makePDF(kind, r) {
+    const { doc, name } = await buildPDF(kind, r, EMP);
+    doc.save(name);
+    await logAcceso(kind === "nota" ? "nota_pdf" : "cotizacion_pdf", "Nº " + r.numero);
   }
 
   /* ============================ CAMBIO DE CONTRASEÑA ============================ */
@@ -964,6 +991,7 @@
     try {
       switch (a) {
         case "nav": go(b.dataset.mod); break;
+        case "cfg-preview": await vistaPreviaPDF(b.dataset.t || "nota"); break;
         case "backup-xlsx": await respaldo("xlsx"); break;
         case "backup-json": await respaldo("json"); break;
         case "close": closeModal(); break;
