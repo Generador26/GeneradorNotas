@@ -2,7 +2,7 @@
 (function () {
   "use strict";
   const CFG = window.SEVEN_CONFIG;
-  const APP_VERSION = "2026-10-03 h";
+  const APP_VERSION = "2026-10-03 i";
   const $ = (s, r) => (r || document).querySelector(s);
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 
@@ -962,7 +962,7 @@
     tot(isNota ? (r.factura === "CON FACTURA" ? "CON FACTURA:" : "SIN FACTURA:") : "TOTAL:", "Bs " + num(r.total).toFixed(2), true);
     if (isNota) { tot("A cuenta:", "Bs " + num(r.a_cuenta).toFixed(2)); tot("SALDO:", "Bs " + num(r.saldo).toFixed(2), true); }
     if (isNota && r.observaciones) { y += 2; doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.text("Observaciones:", M, y); doc.setFont("helvetica", "normal"); y += 5; doc.text(doc.splitTextToSize(r.observaciones, 100), M, y); }
-    doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(6, 50, 59); doc.text(E.horario || "Horario de atención: Lu a Vi 8:30 am - 7:00 pm. SÁBADO Y DOMINGO (CERRADO)", W / 2, 282, { align: "center" }); doc.setFont("helvetica", "normal");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(6, 50, 59); doc.text(String(E.horario || "Horario de atención: Lu a Vi 8:30 am - 7:00 pm. SÁBADO Y DOMINGO (CERRADO)").toUpperCase(), W / 2, 282, { align: "center" }); doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5); doc.setTextColor(110, 138, 146); doc.text([E.nombre, E.lema, E.whatsapp && "WhatsApp " + E.whatsapp].filter(Boolean).join(" · "), W / 2, 288, { align: "center" });
     return { doc, name: (isNota ? "NOTA" : "COTIZACION") + "-" + r.numero + "-" + String(r.cliente || "").replace(/[^\w]+/g, "_").slice(0, 24) + ".pdf" };
   }
