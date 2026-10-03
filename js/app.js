@@ -2,7 +2,7 @@
 (function () {
   "use strict";
   const CFG = window.SEVEN_CONFIG;
-  const APP_VERSION = "2026-10-03 i";
+  const APP_VERSION = "2026-10-03 j";
   const $ = (s, r) => (r || document).querySelector(s);
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 
@@ -93,7 +93,7 @@
     $("#modal").hidden = false;
     document.body.style.overflow = "hidden";
   }
-  function closeModal() { $("#modal").hidden = true; $("#modalBody").innerHTML = ""; document.body.style.overflow = ""; }
+  function closeModal() { $("#modal").hidden = true; $("#modalBody").innerHTML = ""; document.body.style.overflow = ""; if (S.pendingRefresh) { S.pendingRefresh = false; setTimeout(() => renderView(true), 50); } }
   function confirmBox(text, okLabel) {
     return new Promise((res) => {
       openModal("Confirmar", '<p style="margin:0 0 6px">' + esc(text) + '</p><div class="modal-actions"><button class="btn" data-act="cf-no">Cancelar</button><button class="btn btn-primary" data-act="cf-yes">' + esc(okLabel || "Aceptar") + "</button></div>");
@@ -183,10 +183,16 @@
   let rt = null;
   function startRealtime() {
     stopRealtime();
-    const reload = debounce(async () => { try { await loadData(); renderView(true); } catch (e) {} }, 700);
+    const reload = debounce(async () => {
+      if (!navigator.onLine) return;
+      try { await loadData(); if (!$("#modal").hidden) { S.pendingRefresh = true; } else renderView(true); } catch (e) {}
+    }, 500);
+    S.reload = reload;
     rt = sb.channel("seven-rt-" + Date.now())
       .on("postgres_changes", { event: "*", schema: "public", table: "notas" }, reload)
       .on("postgres_changes", { event: "*", schema: "public", table: "cotizaciones" }, reload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "accesos" }, reload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "usuarios" }, reload)
       .subscribe((st) => {
         const chip = $("#liveChip"); if (!chip) return;
         const on = st === "SUBSCRIBED";
@@ -1039,6 +1045,29 @@
     catch (ex) { err.textContent = errMsg(ex); err.hidden = false; }
     btn.disabled = false; btn.textContent = "Ingresar";
   });
+
+  /* ---------- conexión ---------- */
+  function setOffline(off) {
+    const o = $("#offlineOverlay"); if (!o) return;
+    const was = !o.hidden; o.hidden = !off;
+    if (off) { document.body.style.overflow = "hidden"; }
+    else if (was) {
+      document.body.style.overflow = "";
+      if (S.user) { startRealtime(); if (S.reload) S.reload(); toast("Conexión restablecida. Datos actualizados.", "ok"); }
+    }
+  }
+  window.addEventListener("offline", () => setOffline(true));
+  window.addEventListener("online", () => setOffline(false));
+  async function pingNet() {
+    if (!navigator.onLine) return setOffline(true);
+    try { await fetch(CFG.supabaseUrl + "/auth/v1/health", { method: "GET", headers: { apikey: CFG.supabaseKey }, cache: "no-store" }); setOffline(false); }
+    catch (e) { setOffline(true); }
+  }
+  setInterval(pingNet, 10000);
+  // respaldo: refresco cada 20 s por si el canal en vivo se cae
+  setInterval(() => { if (S.user && S.reload && navigator.onLine && !document.hidden) S.reload(); }, 20000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { pingNet(); if (S.user && S.reload) S.reload(); } });
+  if (!navigator.onLine) setOffline(true);
 
   /* ---------- arranque ---------- */
   (async function init() {

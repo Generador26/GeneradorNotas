@@ -242,3 +242,8 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .login-logo{object-fit:contain;background:#fff}
 #cfgForm .field input[type=file]{padding:8px}
 td.num{white-space:nowrap}tfoot td{border-top:2px solid var(--line);background:var(--mist)}
+
+.offline-overlay{position:fixed;inset:0;z-index:99999;background:linear-gradient(135deg,#06323b,#068094);display:flex;align-items:center;justify-content:center;text-align:center;color:#fff;padding:24px}
+.offline-overlay[hidden]{display:none}
+.offline-box{max-width:460px}.offline-ico{font-size:64px;margin-bottom:12px}
+.offline-box h2{margin:0 0 12px;font-size:26px;letter-spacing:.5px}.offline-box p{margin:0;opacity:.9;line-height:1.5}
