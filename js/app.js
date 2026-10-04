@@ -2,7 +2,7 @@
 (function () {
   "use strict";
   const CFG = window.SEVEN_CONFIG;
-  const APP_VERSION = "2026-10-04 c";
+  const APP_VERSION = "2026-10-04 d";
   const $ = (s, r) => (r || document).querySelector(s);
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 
@@ -141,7 +141,7 @@
   async function logout(motivo) {
     const u = S.user;
     if (u) { await logAcceso(motivo === "cierre_por_inactividad" ? "cierre_por_inactividad" : "logout", null, u.usuario); try { await sb.rpc("logout_sesion"); } catch (e) {} }
-    TOKEN = "";
+    TOKEN = ""; S.resp = null;
     S.user = null; S.loaded = false;
     try { sessionStorage.removeItem("seven-user"); } catch (e) {}
     stopRealtime();
@@ -373,6 +373,7 @@
     const formaVal = r.forma_pago || "";
     const fv = formaVal.toUpperCase(); const formas = FORMAS.concat(formaVal && !FORMAS.includes(fv) ? [formaVal] : []);
     S.form = { kind, id: rec ? rec.id : null, prefill: prefill || null };
+    if (kind === "nota" && !S.resp) cargarResponsables().then(() => { const dl = $("#dlResp"); if (dl) dl.innerHTML = Array.from(new Set(S.resp.concat(S.notas.map((x) => x.responsable).filter(Boolean)))).sort().map((n) => '<option value="' + esc(n) + '">').join(""); });
     const its = items(r).length ? items(r) : [{}];
     openModal((rec ? "Editar " : "Nueva ") + (isNota ? "nota de venta" : "cotización") + (rec ? " Nº " + rec.numero : ""),
       '<form id="docForm" novalidate><div class="form-grid">' +
@@ -386,7 +387,7 @@
           '<div class="field" id="rNroFac"><label>Nº de factura</label><input class="inp" id="fNroFac" inputmode="numeric" value="' + esc(r.nro_factura || "") + '"></div>' +
           '<div class="field" id="rFecFac"><label>Fecha de factura</label><input class="inp" type="date" id="fFecFac" value="' + esc(r.fecha_factura || "") + '"></div>' +
           '<div class="field"><label>Fecha de entrega</label><input class="inp" type="date" id="fEntrega" value="' + esc(r.fecha_entrega || "") + '"></div>' +
-          '<div class="field"><label>Responsable de producción</label><input class="inp" id="fResp" list="dlResp" autocomplete="off" placeholder="Quién se hará cargo (solo se ve en Producción)" value="' + esc(r.responsable || "") + '"><datalist id="dlResp">' + Array.from(new Set(S.notas.map((x) => x.responsable).filter(Boolean))).sort().map((n) => '<option value="' + esc(n) + '">').join("") + "</datalist></div>" +
+          '<div class="field"><label>Responsable de producción</label><input class="inp" id="fResp" list="dlResp" autocomplete="off" placeholder="Quién se hará cargo (solo se ve en Producción)" value="' + esc(r.responsable || "") + '"><datalist id="dlResp">' + Array.from(new Set((S.resp || []).concat(S.notas.map((x) => x.responsable).filter(Boolean)))).sort().map((n) => '<option value="' + esc(n) + '">').join("") + "</datalist></div>" +
           '<div class="field full"><label>Dirección / referencia de instalación</label><input class="inp" id="fDirInst" placeholder="Calle, zona, referencia o enlace de Google Maps" value="' + esc(r.direccion_instalacion || "") + '"></div>'
         : '<div class="field"><label>Tiempo de entrega</label><input class="inp" id="fEntregaTxt" placeholder="ej. 5 días hábiles" value="' + esc(r.entrega || "") + '"></div>') +
       "</div>" +
@@ -415,6 +416,12 @@
     $("#fTel").addEventListener("change", (e) => autofill("t", e.target.value, true));
     $("#docForm").addEventListener("input", recalc);
     $("#docForm").addEventListener("submit", (e) => { e.preventDefault(); saveDoc(); });
+  }
+  async function cargarResponsables() {
+    try {
+      const { data } = await sb.rpc("listar_responsables");
+      if (Array.isArray(data)) S.resp = data.map((x) => x.nombre).filter(Boolean);
+    } catch (e) {}
   }
   function readItems() {
     return $$("#itemRows .item-row").map((row) => ({ cant: $(".it-cant", row).value.trim(), detalle: $(".it-det", row).value.trim(), pu: $(".it-pu", row).value.trim() })).filter((i) => i.detalle || num(i.cant) || num(i.pu));
