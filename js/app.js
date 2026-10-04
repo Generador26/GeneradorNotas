@@ -2,7 +2,7 @@
 (function () {
   "use strict";
   const CFG = window.SEVEN_CONFIG;
-  const APP_VERSION = "2026-10-04 d";
+  const APP_VERSION = "2026-10-04 e";
   const $ = (s, r) => (r || document).querySelector(s);
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 
@@ -86,7 +86,6 @@
     prod: { label: "Producción", icon: ICON.prod, roles: ["administrador", "editor"] },
     stats: { label: "Estadísticas", icon: ICON.stats, roles: ["administrador"] },
     users: { label: "Usuarios", icon: ICON.users, roles: ["administrador"] },
-    log: { label: "Accesos", icon: ICON.log, roles: ["administrador"] },
     config: { label: "Configurar", icon: ICON.config, roles: ["administrador"] }
   };
   const can = (mod) => S.user && MODULES[mod] && MODULES[mod].roles.includes(S.user.rol);
@@ -218,7 +217,7 @@
     // refresco en vivo: no pisar formularios abiertos
     if (soft && !$("#modal").hidden) return;
     destroyCharts();
-    const v = { config: vConfig, notas: vNotas, cots: vCots, clientes: vClientes, prod: vProd, stats: vStats, users: vUsers, log: vLog }[S.view];
+    const v = { config: vConfig, notas: vNotas, cots: vCots, clientes: vClientes, prod: vProd, stats: vStats, users: vUsers }[S.view];
     if (v) v();
   }
   const content = () => $("#content");
@@ -690,7 +689,7 @@
       '<p class="t-sub" style="margin:10px 0 0">A cuenta = lo recibido al hacer la nota hoy. Saldo cobrado = pagos de saldo registrados hoy.</p></div>' +
       '<div class="card"><h3>Consultar por fecha</h3><div class="chips" id="stModo"></div><div class="toolbar" style="margin-bottom:10px"><input class="inp" type="date" id="stFecha" style="width:auto" max="' + hoy + '" value="' + esc(u.fecha || "") + '"><div class="chips" style="margin:0" id="stTipo"></div></div><div id="stFechaRes"></div></div></div>' +
       '<div class="card" style="margin-top:18px"><h3>Buscar nota o cliente (deuda, método de pago y fechas)</h3><div class="toolbar">' + searchBox("stQ", "Número de nota, nombre o teléfono del cliente…", u.q) + '<label style="display:flex;align-items:center;gap:8px;font-size:14px;margin:0"><input type="checkbox" id="stDeuda"' + (u.soloDeuda ? " checked" : "") + '> Solo con deuda</label></div><div id="stBuscarRes"></div></div>' +
-      '<div id="stGr"></div>';
+      '<div id="stGr"></div><div id="stLog"></div>';
 
     const drawFecha = () => {
       const iso = u.modo === "hoy" ? hoy : u.modo === "ayer" ? ayer : u.fecha;
@@ -732,6 +731,7 @@
       if (m) { u.modo = m.dataset.stModo; drawFecha(); } if (t) { u.tipo = t.dataset.stTipo; drawFecha(); }
     };
     vStatsGraficos();
+    if (isAdmin()) vLog($("#stLog"));
   }
 
   /* ============================ USUARIOS / ACCESOS ============================ */
@@ -769,16 +769,17 @@
       } catch (er) { toast(errMsg(er), "err"); }
     });
   }
-  async function vLog() {
+  async function vLog(host) {
     const u = S.ui.log = S.ui.log || { q: "" };
-    content().innerHTML = '<div class="toolbar">' + searchBox("fQ", "Filtrar por usuario o acción…", u.q) + '</div><div id="listHost"><div class="empty">Cargando…</div></div>';
+    host.innerHTML = '<div class="card" style="margin-top:18px"><h3>Accesos</h3><div class="toolbar">' + searchBox("logQ", "Filtrar por usuario o acción…", u.q) + '</div><div id="logHost"><div class="empty">Cargando…</div></div></div>';
     const { data, error } = await sb.from("accesos").select("*").order("fecha_hora", { ascending: false }).limit(500);
-    if (error) return ($("#listHost").innerHTML = '<div class="empty">' + esc(errMsg(error)) + "</div>");
+    if (!$("#logHost")) return;
+    if (error) return ($("#logHost").innerHTML = '<div class="empty">' + esc(errMsg(error)) + "</div>");
     const draw = () => {
       const q = norm(u.q); const rows = data.filter((r) => !q || norm(r.usuario + " " + r.accion + " " + r.detalle).includes(q)).slice(0, 200);
-      $("#listHost").innerHTML = '<div class="table-wrap"><table><thead><tr><th>Fecha y hora</th><th>Usuario</th><th>Acción</th><th>Detalle</th></tr></thead><tbody>' + rows.map((r) => "<tr><td>" + new Date(r.fecha_hora).toLocaleString("es-BO", { timeZone: tz }) + '</td><td class="t-main">' + esc(r.usuario || "—") + '</td><td><span class="pill p-teal">' + esc(r.accion) + "</span></td><td>" + esc(r.detalle || "") + "</td></tr>").join("") + "</tbody></table></div>";
+      $("#logHost").innerHTML = '<div class="table-wrap"><table><thead><tr><th>Fecha y hora</th><th>Usuario</th><th>Acción</th><th>Detalle</th></tr></thead><tbody>' + rows.map((r) => "<tr><td>" + new Date(r.fecha_hora).toLocaleString("es-BO", { timeZone: tz }) + '</td><td class="t-main">' + esc(r.usuario || "—") + '</td><td><span class="pill p-teal">' + esc(r.accion) + "</span></td><td>" + esc(r.detalle || "") + "</td></tr>").join("") + "</tbody></table></div>";
     };
-    draw(); $("#fQ").addEventListener("input", debounce((e) => { u.q = e.target.value; draw(); }, 200));
+    draw(); $("#logQ").addEventListener("input", debounce((e) => { u.q = e.target.value; draw(); }, 200));
   }
 
 
