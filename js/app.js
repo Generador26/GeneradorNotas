@@ -2,7 +2,7 @@
 (function () {
   "use strict";
   const CFG = window.SEVEN_CONFIG;
-  const APP_VERSION = "2026-10-04 a";
+  const APP_VERSION = "2026-10-04 b";
   const $ = (s, r) => (r || document).querySelector(s);
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 
@@ -383,13 +383,16 @@
       (isNota
         ? '<div class="field"><label>Factura</label><select class="inp" id="fFactura"><option>SIN FACTURA</option><option' + (r.factura === "CON FACTURA" ? " selected" : "") + ">CON FACTURA</option></select></div>" +
           '<div class="field"><label>Forma de pago (a cuenta)</label><select class="inp" id="fForma"><option value="">—</option>' + formas.map((f) => "<option" + (f.toUpperCase() === fv ? " selected" : "") + ">" + esc(f) + "</option>").join("") + "</select></div>" +
-          '<div class="field"><label>Fecha de entrega</label><input class="inp" type="date" id="fEntrega" value="' + esc(r.fecha_entrega || "") + '"></div>'
+          '<div class="field" id="rNroFac"><label>Nº de factura</label><input class="inp" id="fNroFac" inputmode="numeric" value="' + esc(r.nro_factura || "") + '"></div>' +
+          '<div class="field" id="rFecFac"><label>Fecha de factura</label><input class="inp" type="date" id="fFecFac" value="' + esc(r.fecha_factura || "") + '"></div>' +
+          '<div class="field"><label>Fecha de entrega</label><input class="inp" type="date" id="fEntrega" value="' + esc(r.fecha_entrega || "") + '"></div>' +
+          '<div class="field full"><label>Dirección / referencia de instalación</label><input class="inp" id="fDirInst" placeholder="Calle, zona, referencia o enlace de Google Maps" value="' + esc(r.direccion_instalacion || "") + '"></div>'
         : '<div class="field"><label>Tiempo de entrega</label><input class="inp" id="fEntregaTxt" placeholder="ej. 5 días hábiles" value="' + esc(r.entrega || "") + '"></div>') +
       "</div>" +
       '<div class="lbl" style="margin-top:6px">Detalle</div><div class="items-head"><span>Cant.</span><span>Descripción</span><span>P. unit.</span><span style="text-align:right">Subtotal</span><span></span></div><div id="itemRows">' + its.map(itemRowHTML).join("") + "</div>" +
       '<button type="button" class="btn btn-sm" data-act="add-item">+ Agregar ítem</button>' +
       '<div class="totals">' + (isNota ? '' : "") + '<div class="tr"><span id="lTotal">Total</span><b id="tTotal">Bs 0.00</b></div>' +
-      (isNota ? '<div class="tr"><span>A cuenta</span><input class="inp" id="fACuenta" inputmode="decimal" style="width:130px;text-align:right" value="' + esc(r.a_cuenta == null ? "" : r.a_cuenta) + '"></div><div class="tr big"><span>Saldo</span><span id="tSaldo">Bs 0.00</span></div>' : '<div class="tr big"><span>Total</span><span id="tTotal2">Bs 0.00</span></div>') + "</div>" +
+      (isNota ? '<div class="tr"><span>A cuenta</span><input class="inp" id="fACuenta" inputmode="decimal" style="width:130px;text-align:right" value="' + esc(r.a_cuenta == null ? "" : r.a_cuenta) + '"></div><div class="tr big"><span>Saldo</span><span id="tSaldo">Bs 0.00</span></div><div id="avisoAnt" class="warn-box" hidden></div>' : '<div class="tr big"><span>Total</span><span id="tTotal2">Bs 0.00</span></div>') + "</div>" +
       (isNota ? '<div class="field" style="margin-top:14px"><label>Observaciones</label><textarea class="inp" id="fObs">' + esc(r.observaciones || "") + "</textarea></div>" : "") +
       '<div class="form-grid" style="margin-top:8px">' + imgField("fImgMed", "Imagen de medidas", r.imagen_medidas_url) + imgField("fImgMon", "Imagen de montaje", r.imagen_montaje_url) + "</div>" +
       '<div class="modal-actions"><button type="button" class="btn" data-act="close">Cancelar</button><button type="submit" class="btn btn-primary" id="docSave">Guardar</button></div></form>', true);
@@ -423,6 +426,9 @@
     if (fa) { const con = fa.value === "CON FACTURA"; const iva = con ? r2(total * IVA) : 0; $("#lTotal").textContent = con ? "CON FACTURA" : "SIN FACTURA"; total = r2(total + iva); }
     const t = $("#tTotal"); if (t) t.textContent = money(total);
     const t2 = $("#tTotal2"); if (t2) t2.textContent = money(total);
+    if (fa) { const con = fa.value === "CON FACTURA"; $("#rNroFac").hidden = !con; $("#rFecFac").hidden = !con; }
+    const pct = num(EMP.anticipo_min), av = $("#avisoAnt");
+    if (av) { const ac0 = num($("#fACuenta").value), minimo = r2(total * pct / 100); const bajo = pct > 0 && total > 0 && ac0 + 0.005 < minimo; av.hidden = !bajo; if (bajo) av.textContent = "Anticipo mínimo " + pct + "%: Bs " + minimo.toFixed(2) + ". Falta Bs " + r2(minimo - ac0).toFixed(2) + " para iniciar producción."; }
     const ac = $("#fACuenta"); if (ac) { const s = $("#tSaldo"); const saldo = r2(total - num(ac.value)); s.textContent = money(saldo); s.style.color = saldo > 0 ? "var(--red)" : "var(--green)"; }
   }
   async function nextNumero(table) {
@@ -456,7 +462,9 @@
       let rec;
       if (isNota) {
         const aCuenta = r2(Math.max(0, num($("#fACuenta").value))); const saldo = r2(total - aCuenta);
-        rec = Object.assign(base, { nitci: $("#fNit").value.trim(), factura: $("#fFactura").value, forma_pago: $("#fForma").value, fecha_entrega: $("#fEntrega").value || null, observaciones: $("#fObs").value.trim(), a_cuenta: aCuenta, saldo, pagado_total: total > 0 && saldo <= 0, validez: old ? old.validez : (prefill && prefill.validez) || null });
+        const pctMin = num(EMP.anticipo_min);
+        if (!id && pctMin > 0 && total > 0 && aCuenta + 0.005 < r2(total * pctMin / 100) && !confirm("El anticipo (Bs " + aCuenta.toFixed(2) + ") es menor al mínimo de " + pctMin + "% (Bs " + r2(total * pctMin / 100).toFixed(2) + ").\n¿Guardar de todas formas?")) { btn.disabled = false; btn.textContent = "Guardar"; return; }
+        rec = Object.assign(base, { nitci: $("#fNit").value.trim(), factura: $("#fFactura").value, forma_pago: $("#fForma").value, fecha_entrega: $("#fEntrega").value || null, nro_factura: $("#fFactura").value === "CON FACTURA" ? $("#fNroFac").value.trim() || null : null, fecha_factura: $("#fFactura").value === "CON FACTURA" ? $("#fFecFac").value || null : null, direccion_instalacion: $("#fDirInst").value.trim() || null, observaciones: $("#fObs").value.trim(), a_cuenta: aCuenta, saldo, pagado_total: total > 0 && saldo <= 0, validez: old ? old.validez : (prefill && prefill.validez) || null });
       } else {
         rec = Object.assign(base, { validez: $("#fValidez").value.trim(), entrega: $("#fEntregaTxt").value.trim() });
       }
@@ -483,7 +491,7 @@
     const n = getNota(id); if (!n) return;
     const its = items(n);
     openModal("Nota de venta Nº " + n.numero,
-      '<div class="detail"><dl><dt>Cliente</dt><dd>' + esc(n.cliente) + "</dd><dt>Teléfono</dt><dd>" + esc(n.telefono || "—") + "</dd><dt>NIT / CI</dt><dd>" + esc(n.nitci || "—") + "</dd><dt>Fecha</dt><dd>" + esc(n.fecha) + " · " + esc(n.usuario || "") + "</dd><dt>Factura</dt><dd>" + esc(n.factura || "—") + "</dd><dt>Método a cuenta</dt><dd>" + esc(n.forma_pago || "—") + "</dd>" + (n.forma_pago_saldo ? "<dt>Método del saldo</dt><dd>" + esc(n.forma_pago_saldo) + "</dd>" : "") + "<dt>Entrega</dt><dd class=\"" + (isLate(n) ? "late" : "") + '">' + fmtISO(n.fecha_entrega) + "</dd><dt>Estado</dt><dd>" + pillEstado(n.estado_produccion) + " " + pillPago(n) + "</dd>" + (n.observaciones ? "<dt>Observaciones</dt><dd>" + esc(n.observaciones).replace(/\n/g, "<br>") + "</dd>" : "") + "</dl></div>" +
+      '<div class="detail"><dl><dt>Cliente</dt><dd>' + esc(n.cliente) + "</dd><dt>Teléfono</dt><dd>" + esc(n.telefono || "—") + "</dd><dt>NIT / CI</dt><dd>" + esc(n.nitci || "—") + "</dd><dt>Fecha</dt><dd>" + esc(n.fecha) + " · " + esc(n.usuario || "") + "</dd><dt>Factura</dt><dd>" + esc(n.factura || "—") + (n.nro_factura ? " · Nº " + esc(n.nro_factura) : "") + (n.fecha_factura ? " · " + fmtISO(n.fecha_factura) : "") + "</dd>" + (n.direccion_instalacion ? "<dt>Instalación</dt><dd>" + esc(n.direccion_instalacion) + (/^https?:\/\//i.test(n.direccion_instalacion) ? "" : ' · <a href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(n.direccion_instalacion) + '" target="_blank" rel="noopener">Ver mapa</a>') + "</dd>" : "") + "<dt>Método a cuenta</dt><dd>" + esc(n.forma_pago || "—") + "</dd>" + (n.forma_pago_saldo ? "<dt>Método del saldo</dt><dd>" + esc(n.forma_pago_saldo) + "</dd>" : "") + "<dt>Entrega</dt><dd class=\"" + (isLate(n) ? "late" : "") + '">' + fmtISO(n.fecha_entrega) + "</dd><dt>Estado</dt><dd>" + pillEstado(n.estado_produccion) + " " + pillPago(n) + "</dd>" + (n.observaciones ? "<dt>Observaciones</dt><dd>" + esc(n.observaciones).replace(/\n/g, "<br>") + "</dd>" : "") + "</dl></div>" +
       '<div class="table-wrap" style="margin:16px 0"><table><thead><tr><th class="num">Cant.</th><th>Detalle</th><th class="num">P. unit.</th><th class="num">Subtotal</th></tr></thead><tbody>' + its.map((i) => '<tr><td class="num">' + esc(i.cant) + "</td><td>" + esc(i.detalle) + '</td><td class="num">' + money(i.pu) + '</td><td class="num">' + money(num(i.cant) * num(i.pu)) + "</td></tr>").join("") + "</tbody></table></div>" +
       '<div class="totals"><div class="tr"><span>Total</span><b>' + money(n.total) + '</b></div><div class="tr"><span>A cuenta</span><span>' + money(n.a_cuenta) + '</span></div><div class="tr big"><span>Saldo</span><span class="' + (num(n.saldo) > 0 ? "money-neg" : "money-ok") + '">' + money(n.saldo) + "</span></div></div>" +
       ((n.imagen_medidas_url || n.imagen_montaje_url) ? '<div class="form-grid" style="margin-top:12px">' + [n.imagen_medidas_url, n.imagen_montaje_url].filter(Boolean).map((u) => '<a href="' + esc(u) + '" target="_blank" rel="noopener"><img class="thumb" style="max-height:200px" src="' + esc(u) + '" alt=""></a>').join("") + "</div>" : "") +
@@ -767,7 +775,7 @@
 
 
   /* ---------- datos de la empresa (se guardan como archivo JSON en el almacenamiento) ---------- */
-  const EMP_DEF = { nombre: CFG.empresa.nombre, lema: CFG.empresa.lema, telefono: "", whatsapp: "", direccion: "", email: "", logo_url: "" };
+  const EMP_DEF = { anticipo_min: "", nombre: CFG.empresa.nombre, lema: CFG.empresa.lema, telefono: "", whatsapp: "", direccion: "", email: "", logo_url: "" };
   let EMP = Object.assign({}, EMP_DEF);
   const EMP_PATH = "config/empresa.json";
   async function loadEmpresa() {
@@ -799,6 +807,7 @@
       '<div class="form-grid"><div class="field"><label>Teléfono</label><input class="inp" id="cTel" inputmode="tel" value="' + esc(EMP.telefono) + '"></div>' +
       '<div class="field"><label>WhatsApp</label><input class="inp" id="cWa" inputmode="tel" value="' + esc(EMP.whatsapp) + '"></div></div>' +
       '<div class="field"><label>Dirección</label><input class="inp" id="cDir" value="' + esc(EMP.direccion) + '"></div>' +
+      '<div class="field"><label>Anticipo mínimo para producir (% del total, 0 = sin alerta)</label><input class="inp" id="cAnt" inputmode="decimal" placeholder="ej. 50" value="' + esc(EMP.anticipo_min || "") + '"></div>' +
       '<div class="field"><label>Correo electrónico</label><input class="inp" id="cMail" type="email" value="' + esc(EMP.email) + '"></div>' +
       '<div class="field"><label>Logo (PNG o JPG)</label><input class="inp" type="file" id="cLogo" accept="image/png,image/jpeg,image/webp"><div style="display:flex;align-items:center;gap:14px;margin-top:10px"><img id="cLogoPrev" src="' + esc(EMP.logo_url || "img/logo-seven.png") + '" alt="" style="width:84px;height:84px;object-fit:contain;border:1px solid var(--line);border-radius:14px;background:#fff"><label style="text-transform:none;letter-spacing:0;font-size:13px;margin:0;display:flex;align-items:center;gap:8px"><input type="checkbox" id="cLogoQuitar" style="width:auto"> Volver al logo original</label></div></div>' +
       '<div class="modal-actions" style="justify-content:flex-start"><button class="btn" type="button" data-act="cfg-preview">Ver cómo queda el PDF</button><button class="btn btn-primary" type="submit" id="cfgSave">Guardar cambios</button></div></form></div>' +
@@ -817,7 +826,7 @@
       e.preventDefault();
       const btn = $("#cfgSave"); btn.disabled = true; btn.textContent = "Guardando…";
       try {
-        const datos = { nombre: $("#cNombre").value.trim() || EMP_DEF.nombre, lema: $("#cLema").value.trim(), telefono: $("#cTel").value.trim(), whatsapp: $("#cWa").value.trim(), direccion: $("#cDir").value.trim(), email: $("#cMail").value.trim(), logo_url: EMP.logo_url };
+        const datos = { nombre: $("#cNombre").value.trim() || EMP_DEF.nombre, lema: $("#cLema").value.trim(), telefono: $("#cTel").value.trim(), whatsapp: $("#cWa").value.trim(), direccion: $("#cDir").value.trim(), email: $("#cMail").value.trim(), anticipo_min: $("#cAnt").value.trim(), logo_url: EMP.logo_url };
         if ($("#cLogoQuitar").checked) datos.logo_url = "";
         const f = $("#cLogo").files[0];
         if (f) {
@@ -836,7 +845,7 @@
   }
 
   function leerFormEmpresa() {
-    const E = { nombre: $("#cNombre").value.trim() || EMP_DEF.nombre, lema: $("#cLema").value.trim(), telefono: $("#cTel").value.trim(), whatsapp: $("#cWa").value.trim(), direccion: $("#cDir").value.trim(), email: $("#cMail").value.trim(), logo_url: EMP.logo_url };
+    const E = { nombre: $("#cNombre").value.trim() || EMP_DEF.nombre, lema: $("#cLema").value.trim(), telefono: $("#cTel").value.trim(), whatsapp: $("#cWa").value.trim(), direccion: $("#cDir").value.trim(), email: $("#cMail").value.trim(), anticipo_min: $("#cAnt").value.trim(), logo_url: EMP.logo_url };
     if ($("#cLogoQuitar").checked) E.logo_url = "";
     const f = $("#cLogo").files[0]; if (f) E.logo_url = URL.createObjectURL(f);
     return E;
@@ -943,7 +952,9 @@
     let y = 54; doc.setTextColor(...ink); doc.setFontSize(10);
     const line = (a, b, x) => { doc.setFont("helvetica", "bold"); doc.text(a, x, y); doc.setFont("helvetica", "normal"); doc.text(String(b || "—"), x + 24, y); };
     line("Cliente:", r.cliente, M); line("Teléfono:", r.telefono, 125); y += 6;
-    if (isNota) { line("NIT / CI:", r.nitci, M); line("Factura:", r.factura, 125); y += 6; line("Pago a cta.:", r.forma_pago, M); line("Entrega:", fmtISO(r.fecha_entrega), 125); y += 6; if (r.forma_pago_saldo) { line("Pago saldo:", r.forma_pago_saldo, M); y += 6; } }
+    if (isNota) { line("NIT / CI:", r.nitci, M); line("Factura:", r.factura, 125); y += 6;
+      if (r.factura === "CON FACTURA" && (r.nro_factura || r.fecha_factura)) { line("Nº factura:", r.nro_factura, M); line("F. factura:", fmtISO(r.fecha_factura), 125); y += 6; }
+      if (r.direccion_instalacion) { line("Instalación:", doc.splitTextToSize(String(r.direccion_instalacion), 140)[0], M); y += 6; } line("Pago a cta.:", r.forma_pago, M); line("Entrega:", fmtISO(r.fecha_entrega), 125); y += 6; if (r.forma_pago_saldo) { line("Pago saldo:", r.forma_pago_saldo, M); y += 6; } }
     else { line("Validez:", (r.validez || "—") + " días", M); line("Entrega:", r.entrega, 125); y += 6; }
     y += 4;
     const head = () => { doc.setFillColor(...teal); doc.rect(M, y, W - 2 * M, 8, "F"); doc.setTextColor(255); doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.text("CANT.", M + 3, y + 5.5); doc.text("DETALLE", M + 24, y + 5.5); doc.text("P. UNIT.", 150, y + 5.5, { align: "right" }); doc.text("SUBTOTAL", W - M - 3, y + 5.5, { align: "right" }); y += 8; doc.setTextColor(...ink); };
