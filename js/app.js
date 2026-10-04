@@ -2,7 +2,7 @@
 (function () {
   "use strict";
   const CFG = window.SEVEN_CONFIG;
-  const APP_VERSION = "2026-10-04 f";
+  const APP_VERSION = "2026-10-04 g";
   const $ = (s, r) => (r || document).querySelector(s);
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 
@@ -453,6 +453,24 @@
     return sb.storage.from(CFG.bucket).getPublicUrl(path).data.publicUrl;
   }
 
+  const CAMPOS = { cliente: "cliente", telefono: "teléfono", nitci: "NIT/CI", factura: "factura", nro_factura: "nº factura", fecha_factura: "fecha factura", forma_pago: "método a cuenta", fecha_entrega: "entrega", direccion_instalacion: "instalación", responsable: "responsable", observaciones: "observaciones", total: "total", a_cuenta: "a cuenta", validez: "validez", entrega: "entrega" };
+  function cambiosTxt(old, rec) {
+    const norm2 = (v) => (v == null ? "" : String(v).trim());
+    const out = [];
+    Object.keys(CAMPOS).forEach((k) => { if (k in rec && norm2(old[k]) !== norm2(rec[k])) { const cut = (t) => (t.length > 40 ? t.slice(0, 40) + "…" : t) || "vacío"; out.push(CAMPOS[k] + ": " + cut(norm2(old[k])) + " → " + cut(norm2(rec[k]))); } });
+    if (JSON.stringify(items(old).map((i) => [i.cant, i.detalle, i.pu])) !== JSON.stringify((rec.items || []).map((i) => [i.cant, i.detalle, i.pu]))) out.push("ítems modificados");
+    return out.length ? " | " + out.join("; ") : " | sin cambios";
+  }
+  async function historialDoc(kind, id) {
+    const r = kind === "nota" ? getNota(id) : getCot(id); if (!r) return;
+    openModal("Historial · " + (kind === "nota" ? "Nota" : "Cotización") + " Nº " + r.numero, '<div class="empty">Cargando…</div>', true);
+    const { data, error } = await sb.from("accesos").select("usuario,accion,detalle,fecha_hora").ilike("detalle", "Nº " + r.numero + "%").order("fecha_hora", { ascending: false }).limit(300);
+    if (error) return ($("#modalBody").innerHTML = '<div class="empty">' + esc(errMsg(error)) + "</div>");
+    const re = new RegExp("^Nº\\s*" + r.numero + "(?!\\d)");
+    const rows = (data || []).filter((x) => re.test(x.detalle || "") && !/_pdf$/.test(x.accion));
+    $("#modalBody").innerHTML = rows.length ? '<div class="table-wrap" style="box-shadow:none"><table><thead><tr><th>Fecha y hora</th><th>Usuario</th><th>Acción</th><th>Detalle</th></tr></thead><tbody>' + rows.map((x) => "<tr><td>" + new Date(x.fecha_hora).toLocaleString("es-BO", { timeZone: tz }) + '</td><td class="t-main">' + esc(x.usuario || "—") + '</td><td><span class="pill p-teal">' + esc(x.accion.replace(/_/g, " ")) + "</span></td><td>" + esc((x.detalle || "").replace(/^Nº\s*\d+\s*\|?\s*/, "")) + "</td></tr>").join("") + '</tbody></table></div><div class="modal-actions"><button class="btn" data-act="close">Cerrar</button></div>' : '<div class="empty">Sin movimientos registrados.</div>';
+  }
+
   async function saveDoc() {
     const { kind, id, prefill } = S.form; const isNota = kind === "nota";
     const cliente = $("#fCliente").value.trim();
@@ -478,7 +496,7 @@
       const table = isNota ? "notas" : "cotizaciones";
       if (id) {
         const { error } = await sb.from(table).update(rec).eq("id", id); if (error) throw error;
-        await logAcceso(isNota ? "nota_editada" : "cotizacion_editada", "Nº " + old.numero);
+        await logAcceso(isNota ? "nota_editada" : "cotizacion_editada", "Nº " + old.numero + cambiosTxt(old, rec));
       } else {
         const n = await nextNumero(table);
         Object.assign(rec, { numero: pad6(n), numero_int: n, usuario: S.user.usuario });
@@ -504,7 +522,7 @@
       ((n.imagen_medidas_url || n.imagen_montaje_url) ? '<div class="form-grid" style="margin-top:12px">' + [n.imagen_medidas_url, n.imagen_montaje_url].filter(Boolean).map((u) => '<a href="' + esc(u) + '" target="_blank" rel="noopener"><img class="thumb" style="max-height:200px" src="' + esc(u) + '" alt=""></a>').join("") + "</div>" : "") +
       '<div class="modal-actions"><select class="inp" style="width:auto" data-sel="estado" data-id="' + n.id + '">' + ESTADOS.map((e) => '<option value="' + e.id + '"' + (e.id === n.estado_produccion ? " selected" : "") + ">" + e.label + "</option>").join("") + "</select>" +
       (debe(n) > 0.005 ? '<button class="btn" data-act="pago-nota" data-id="' + n.id + '">Registrar pago</button>' : "") +
-      '<button class="btn" data-act="pdf-nota" data-id="' + n.id + '">PDF</button><button class="btn" data-act="edit-nota" data-id="' + n.id + '">Editar</button>' + (isAdmin() ? '<button class="btn btn-danger" data-act="del-nota" data-id="' + n.id + '">Eliminar</button>' : "") + "</div>", true);
+      '<button class="btn" data-act="hist-nota" data-id="' + n.id + '">Historial</button><button class="btn" data-act="pdf-nota" data-id="' + n.id + '">PDF</button><button class="btn" data-act="edit-nota" data-id="' + n.id + '">Editar</button>' + (isAdmin() ? '<button class="btn btn-danger" data-act="del-nota" data-id="' + n.id + '">Eliminar</button>' : "") + "</div>", true);
   }
   function pagoForm(id, entregar) {
     const n = getNota(id); if (!n) return;
@@ -653,6 +671,53 @@
   }
   const pagosDe = (n, pagos) => pagos.filter((p) => (p.id ? p.id === n.id : p.numero === n.numero));
 
+
+  /* ---------- cierre de caja, carga por responsable, comparación mensual ---------- */
+  function cobrosDia(dia, pagos) {
+    const cob = {}; const add = (m, k, v) => { const key = metodo(m); cob[key] = cob[key] || { acuenta: 0, saldo: 0 }; cob[key][k] += v; };
+    const nd = S.notas.filter((n) => docKey(n) === dia);
+    nd.forEach((n) => { const cobrado = pagosDe(n, pagos).reduce((a, p) => a + p.monto, 0); const inicial = Math.max(0, num(n.a_cuenta) - cobrado); if (inicial > 0) add(n.forma_pago, "acuenta", inicial); });
+    const pg = pagos.filter((p) => p.dia === dia); pg.forEach((p) => add(p.metodo, "saldo", p.monto));
+    const filas = Object.keys(cob).sort().map((k) => ({ metodo: k, acuenta: r2(cob[k].acuenta), saldo: r2(cob[k].saldo), total: r2(cob[k].acuenta + cob[k].saldo) }));
+    return { filas, total: r2(filas.reduce((a, f) => a + f.total, 0)), notas: nd.length, vendido: r2(nd.reduce((a, n) => a + num(n.total), 0)), cots: S.cots.filter((c) => docKey(c) === dia).length, pagosSaldo: pg.length };
+  }
+  function cierrePDF(dia, c) {
+    const { jsPDF } = window.jspdf; const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const W = 210, M = 16; let y = 22; const teal = [6, 128, 148], ink = [6, 50, 59];
+    doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(...ink); doc.text("CIERRE DE CAJA", M, y);
+    doc.setFontSize(10); doc.setTextColor(...teal); doc.text(String(EMP.nombre || "").toUpperCase(), W - M, y, { align: "right" }); y += 8;
+    doc.setFont("helvetica", "normal"); doc.setTextColor(...ink); doc.text("Fecha: " + fmtISO(dia) + "     Emitido por: " + (S.user ? S.user.nombre : ""), M, y); y += 10;
+    doc.setFillColor(...teal); doc.rect(M, y - 5, W - 2 * M, 8, "F"); doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold");
+    doc.text("Método", M + 3, y); doc.text("A cuenta", 110, y, { align: "right" }); doc.text("Saldo cobrado", 148, y, { align: "right" }); doc.text("Total", W - M - 3, y, { align: "right" }); y += 8;
+    doc.setTextColor(...ink); doc.setFont("helvetica", "normal");
+    if (!c.filas.length) { doc.text("Sin cobros en esta fecha.", M + 3, y); y += 7; }
+    c.filas.forEach((f) => { doc.text(f.metodo, M + 3, y); doc.text(f.acuenta.toFixed(2), 110, y, { align: "right" }); doc.text(f.saldo.toFixed(2), 148, y, { align: "right" }); doc.text(f.total.toFixed(2), W - M - 3, y, { align: "right" }); y += 7; });
+    doc.setDrawColor(...teal); doc.line(M, y - 3, W - M, y - 3); y += 3;
+    doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.text("TOTAL COBRADO:", 110, y, { align: "right" }); doc.text("Bs " + c.total.toFixed(2), W - M - 3, y, { align: "right" }); y += 12;
+    doc.setFontSize(10); doc.setFont("helvetica", "normal");
+    [["Notas de venta del día", c.notas + "  (Bs " + c.vendido.toFixed(2) + ")"], ["Cotizaciones del día", String(c.cots)], ["Pagos de saldo registrados", String(c.pagosSaldo)]].forEach((l) => { doc.text(l[0] + ":", M, y); doc.text(l[1], 80, y); y += 6; });
+    y += 22; doc.setDrawColor(...ink); doc.line(M, y, M + 60, y); doc.line(W - M - 60, y, W - M, y); y += 5; doc.setFontSize(9); doc.text("Responsable de caja", M + 30, y, { align: "center" }); doc.text("Administración", W - M - 30, y, { align: "center" });
+    doc.save("CIERRE-CAJA-" + dia + ".pdf");
+  }
+  function cargaResponsablesHTML() {
+    const act = S.notas.filter((n) => (n.estado_produccion || "pendiente") !== "entregado");
+    const g = {};
+    act.forEach((n) => { const k = n.responsable || "Sin asignar"; const r = g[k] = g[k] || { pend: 0, prod: 0, term: 0, atr: 0 }; const e = n.estado_produccion || "pendiente"; if (e === "pendiente") r.pend++; else if (e === "produccion") r.prod++; else r.term++; if (isLate(n)) r.atr++; });
+    const keys = Object.keys(g).sort((a, b) => (a === "Sin asignar") - (b === "Sin asignar") || (g[b].pend + g[b].prod + g[b].term) - (g[a].pend + g[a].prod + g[a].term));
+    return '<div class="card" style="margin-top:18px"><h3>Carga por responsable (trabajos sin entregar)</h3>' + (keys.length ? '<div class="table-wrap" style="box-shadow:none"><table><thead><tr><th>Responsable</th><th class="num">Pendientes</th><th class="num">En producción</th><th class="num">Terminados</th><th class="num">Atrasados</th><th class="num">Total</th></tr></thead><tbody>' + keys.map((k) => { const r = g[k]; return '<tr><td class="t-main">' + esc(k) + '</td><td class="num">' + r.pend + '</td><td class="num">' + r.prod + '</td><td class="num">' + r.term + '</td><td class="num">' + (r.atr ? '<span class="late">' + r.atr + "</span>" : 0) + '</td><td class="num"><b>' + (r.pend + r.prod + r.term) + "</b></td></tr>"; }).join("") + "</tbody></table></div>" : '<div class="empty">No hay trabajos en proceso.</div>') + "</div>";
+  }
+  function comparacionMensualHTML() {
+    const now = new Date(); const meses = [];
+    for (let i = 5; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); meses.push(d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0")); }
+    const m = {}; meses.forEach((k) => (m[k] = { n: 0, v: 0, c: 0 }));
+    S.notas.forEach((n) => { const k = docKey(n).slice(0, 7); if (m[k]) { m[k].n++; m[k].v += num(n.total); m[k].c += num(n.total) - Math.min(num(n.total), Math.max(0, debe(n))); } });
+    const max = Math.max(1, ...meses.map((k) => m[k].v));
+    const rows = meses.map((k, i) => { const prev = i ? m[meses[i - 1]].v : null; const dv = prev === null ? null : prev > 0 ? Math.round(((m[k].v - prev) / prev) * 100) : (m[k].v > 0 ? 100 : 0);
+      const dtxt = dv === null ? "—" : '<span class="' + (dv >= 0 ? "money-ok" : "money-neg") + '">' + (dv >= 0 ? "▲ +" : "▼ ") + dv + "%</span>";
+      return '<tr><td class="t-main">' + MESES[+k.slice(5) - 1] + " " + k.slice(0, 4) + (i === 5 ? ' <span class="t-sub">(en curso)</span>' : "") + '</td><td class="num">' + m[k].n + '</td><td class="num">' + money(m[k].v) + '</td><td style="min-width:120px"><div style="height:8px;border-radius:6px;background:var(--teal);width:' + Math.round((m[k].v / max) * 100) + '%"></div></td><td class="num">' + money(m[k].c) + '</td><td class="num">' + dtxt + "</td></tr>"; }).join("");
+    return '<div class="card" style="margin-top:18px"><h3>Comparación mensual (últimos 6 meses)</h3><div class="table-wrap" style="box-shadow:none"><table><thead><tr><th>Mes</th><th class="num">Notas</th><th class="num">Vendido</th><th></th><th class="num">Cobrado</th><th class="num">vs mes anterior</th></tr></thead><tbody>' + rows + "</tbody></table></div></div>";
+  }
+
   async function vStats() {
     const u = S.ui.st = S.ui.st || { modo: "hoy", fecha: "", tipo: "notas", q: "", soloDeuda: false };
     content().innerHTML = '<div class="empty">Cargando estadísticas…</div>';
@@ -689,6 +754,8 @@
       '<p class="t-sub" style="margin:10px 0 0">A cuenta = lo recibido al hacer la nota hoy. Saldo cobrado = pagos de saldo registrados hoy.</p></div>' +
       '<div class="card"><h3>Consultar por fecha</h3><div class="chips" id="stModo"></div><div class="toolbar" style="margin-bottom:10px"><input class="inp" type="date" id="stFecha" style="width:auto" max="' + hoy + '" value="' + esc(u.fecha || "") + '"><div class="chips" style="margin:0" id="stTipo"></div></div><div id="stFechaRes"></div></div></div>' +
       '<div class="card" style="margin-top:18px"><h3>Buscar nota o cliente (deuda, método de pago y fechas)</h3><div class="toolbar">' + searchBox("stQ", "Número de nota, nombre o teléfono del cliente…", u.q) + '<label style="display:flex;align-items:center;gap:8px;font-size:14px;margin:0"><input type="checkbox" id="stDeuda"' + (u.soloDeuda ? " checked" : "") + '> Solo con deuda</label></div><div id="stBuscarRes"></div></div>' +
+      '<div class="card" style="margin-top:18px"><h3>Cierre de caja</h3><div class="toolbar" style="margin-bottom:10px"><input class="inp" type="date" id="cjFecha" style="width:auto" value="' + hoy + '"><button class="btn btn-primary" id="cjPdf">Imprimir cierre (PDF)</button></div><div id="cjBody"></div></div>' +
+      cargaResponsablesHTML() + comparacionMensualHTML() +
       '<div id="stGr"></div><div id="stLog"></div>';
 
     const drawFecha = () => {
@@ -730,6 +797,13 @@
       const m = ev.target.closest("[data-st-modo]"), t = ev.target.closest("[data-st-tipo]");
       if (m) { u.modo = m.dataset.stModo; drawFecha(); } if (t) { u.tipo = t.dataset.stTipo; drawFecha(); }
     };
+    const drawCierre = () => {
+      const dia = $("#cjFecha").value || hoy; const c = cobrosDia(dia, pagos);
+      $("#cjBody").innerHTML = '<div class="table-wrap" style="box-shadow:none"><table><thead><tr><th>Método</th><th class="num">A cuenta</th><th class="num">Saldo cobrado</th><th class="num">Total</th></tr></thead><tbody>' + (c.filas.length ? c.filas.map((f) => '<tr><td><span class="pill p-teal">' + esc(f.metodo) + '</span></td><td class="num">' + money(f.acuenta) + '</td><td class="num">' + money(f.saldo) + '</td><td class="num"><b>' + money(f.total) + "</b></td></tr>").join("") : '<tr><td colspan="4" class="t-sub">Sin cobros en esta fecha.</td></tr>') + '</tbody><tfoot><tr><td colspan="3"><b>Total cobrado</b></td><td class="num"><b>' + money(c.total) + "</b></td></tr></tfoot></table></div>" + '<p class="t-sub" style="margin:10px 0 0">' + c.notas + " notas de venta (" + money(c.vendido) + ") · " + c.cots + " cotizaciones · " + c.pagosSaldo + " pagos de saldo.</p>";
+    };
+    drawCierre();
+    $("#cjFecha").addEventListener("change", drawCierre);
+    $("#cjPdf").addEventListener("click", async () => { const dia = $("#cjFecha").value || hoy; cierrePDF(dia, cobrosDia(dia, pagos)); await logAcceso("cierre_caja_pdf", fmtISO(dia)); });
     vStatsGraficos();
     if (isAdmin()) vLog($("#stLog"));
   }
@@ -1027,6 +1101,7 @@
         case "pago-nota": pagoForm(id); break;
         case "del-nota": await deleteDoc("nota", id); break;
         case "conv-cot": convertirCot(id); break;
+        case "hist-nota": await historialDoc("nota", id); break;
         case "pdf-nota": await makePDF("nota", getNota(id)); break;
         case "pdf-cot": await makePDF("cot", getCot(id)); break;
         case "mv": await setEstado(id, b.dataset.to); break;
