@@ -12,7 +12,7 @@
 <link rel="preload" href="img/logo-seven.png" as="image">
 <link rel="preload" href="fonts/archivo-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/ibm-plex-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="css/app.css?v=20261004h">
+<link rel="stylesheet" href="css/app.css?v=20261004i">
 </head>
 <body>
 <div id="boot" class="boot"><img src="img/logo-seven.png" alt="Gigantografía Seven" width="160" height="160"><div class="spinner"></div></div>
@@ -31,7 +31,7 @@
         <div class="field"><label for="uUser">Usuario</label>
           <input id="uUser" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required></div>
         <div class="field"><label for="uPass">Contraseña</label>
-          <input id="uPass" name="password" type="password" autocomplete="current-password" required></div>
+          <div class="pw-wrap"><input id="uPass" name="password" type="password" autocomplete="current-password" required><button type="button" id="pwToggle" class="pw-eye" aria-label="Mostrar contraseña" title="Mostrar contraseña"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/><path class="slash" d="M3 3l18 18" style="display:none"/></svg></button></div></div>
         <button class="btn btn-primary btn-block" id="loginBtn" type="submit">Ingresar</button>
       </form>
     </div>
@@ -81,7 +81,7 @@
 <script src="vendor/jspdf.umd.min.js"></script>
 <script src="vendor/chart.umd.js"></script>
 <script src="vendor/xlsx.mini.min.js"></script>
-<script src="js/config.js?v=20261004h"></script>
-<script src="js/app.js?v=20261004h"></script>
+<script src="js/config.js?v=20261004i"></script>
+<script src="js/app.js?v=20261004i"></script>
 </body>
 </html>

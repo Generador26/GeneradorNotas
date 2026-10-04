@@ -2,7 +2,7 @@
 (function () {
   "use strict";
   const CFG = window.SEVEN_CONFIG;
-  const APP_VERSION = "2026-10-04 h";
+  const APP_VERSION = "2026-10-04 i";
   const $ = (s, r) => (r || document).querySelector(s);
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 
@@ -168,7 +168,7 @@
   function showLogin(msg) {
     $("#boot").hidden = true; $("#app-view").hidden = true; $("#login-view").hidden = false;
     const e = $("#loginError"); e.hidden = !msg; e.textContent = msg || "";
-    $("#uPass").value = "";
+    $("#uPass").value = ""; $("#uPass").type = "password"; if ($("#pwToggle")) $(".slash", $("#pwToggle")).style.display = "none";
     setTimeout(() => $("#uUser").focus(), 50);
   }
 
@@ -1137,6 +1137,10 @@
   $("#menuBtn").addEventListener("click", () => { $("#sidebar").classList.add("open"); $("#scrim").hidden = false; });
   $("#scrim").addEventListener("click", () => { $("#sidebar").classList.remove("open"); $("#scrim").hidden = true; });
   $("#userChip").addEventListener("click", () => { const d = $("#userDropdown"); d.hidden = !d.hidden; $("#userChip").setAttribute("aria-expanded", String(!d.hidden)); });
+  $("#pwToggle").addEventListener("click", () => {
+    const i = $("#uPass"), ver = i.type === "password"; i.type = ver ? "text" : "password";
+    const b = $("#pwToggle"); b.setAttribute("aria-label", ver ? "Ocultar contraseña" : "Mostrar contraseña"); b.title = b.getAttribute("aria-label"); $(".slash", b).style.display = ver ? "" : "none"; i.focus();
+  });
   $("#logoutBtn").addEventListener("click", () => logout());
   document.addEventListener("click", (e) => { if (e.target.closest("button, .chip, .nav-btn, a.btn")) play("click"); }, true);
   const pintaSonido = () => { const b = $("#soundBtn"); if (b) b.textContent = soundOn() ? "🔊 Sonido: activado" : "🔇 Sonido: desactivado"; };
