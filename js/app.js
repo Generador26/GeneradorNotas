@@ -2,7 +2,7 @@
 (function () {
   "use strict";
   const CFG = window.SEVEN_CONFIG;
-  const APP_VERSION = "2026-10-04 e";
+  const APP_VERSION = "2026-10-04 f";
   const $ = (s, r) => (r || document).querySelector(s);
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 
@@ -771,12 +771,12 @@
   }
   async function vLog(host) {
     const u = S.ui.log = S.ui.log || { q: "" };
-    host.innerHTML = '<div class="card" style="margin-top:18px"><h3>Accesos</h3><div class="toolbar">' + searchBox("logQ", "Filtrar por usuario o acción…", u.q) + '</div><div id="logHost"><div class="empty">Cargando…</div></div></div>';
+    host.innerHTML = '<div class="card" style="margin-top:18px"><h3>Últimos 10 accesos</h3><div class="toolbar">' + searchBox("logQ", "Filtrar por usuario o acción…", u.q) + '</div><div id="logHost"><div class="empty">Cargando…</div></div></div>';
     const { data, error } = await sb.from("accesos").select("*").order("fecha_hora", { ascending: false }).limit(500);
     if (!$("#logHost")) return;
     if (error) return ($("#logHost").innerHTML = '<div class="empty">' + esc(errMsg(error)) + "</div>");
     const draw = () => {
-      const q = norm(u.q); const rows = data.filter((r) => !q || norm(r.usuario + " " + r.accion + " " + r.detalle).includes(q)).slice(0, 200);
+      const q = norm(u.q); const rows = data.filter((r) => !q || norm(r.usuario + " " + r.accion + " " + r.detalle).includes(q)).slice(0, 10);
       $("#logHost").innerHTML = '<div class="table-wrap"><table><thead><tr><th>Fecha y hora</th><th>Usuario</th><th>Acción</th><th>Detalle</th></tr></thead><tbody>' + rows.map((r) => "<tr><td>" + new Date(r.fecha_hora).toLocaleString("es-BO", { timeZone: tz }) + '</td><td class="t-main">' + esc(r.usuario || "—") + '</td><td><span class="pill p-teal">' + esc(r.accion) + "</span></td><td>" + esc(r.detalle || "") + "</td></tr>").join("") + "</tbody></table></div>";
     };
     draw(); $("#logQ").addEventListener("input", debounce((e) => { u.q = e.target.value; draw(); }, 200));
