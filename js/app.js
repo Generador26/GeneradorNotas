@@ -2,7 +2,7 @@
 (function () {
   "use strict";
   const CFG = window.SEVEN_CONFIG;
-  const APP_VERSION = "2026-10-04 b";
+  const APP_VERSION = "2026-10-04 c";
   const $ = (s, r) => (r || document).querySelector(s);
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 
@@ -386,6 +386,7 @@
           '<div class="field" id="rNroFac"><label>Nº de factura</label><input class="inp" id="fNroFac" inputmode="numeric" value="' + esc(r.nro_factura || "") + '"></div>' +
           '<div class="field" id="rFecFac"><label>Fecha de factura</label><input class="inp" type="date" id="fFecFac" value="' + esc(r.fecha_factura || "") + '"></div>' +
           '<div class="field"><label>Fecha de entrega</label><input class="inp" type="date" id="fEntrega" value="' + esc(r.fecha_entrega || "") + '"></div>' +
+          '<div class="field"><label>Responsable de producción</label><input class="inp" id="fResp" list="dlResp" autocomplete="off" placeholder="Quién se hará cargo (solo se ve en Producción)" value="' + esc(r.responsable || "") + '"><datalist id="dlResp">' + Array.from(new Set(S.notas.map((x) => x.responsable).filter(Boolean))).sort().map((n) => '<option value="' + esc(n) + '">').join("") + "</datalist></div>" +
           '<div class="field full"><label>Dirección / referencia de instalación</label><input class="inp" id="fDirInst" placeholder="Calle, zona, referencia o enlace de Google Maps" value="' + esc(r.direccion_instalacion || "") + '"></div>'
         : '<div class="field"><label>Tiempo de entrega</label><input class="inp" id="fEntregaTxt" placeholder="ej. 5 días hábiles" value="' + esc(r.entrega || "") + '"></div>') +
       "</div>" +
@@ -464,7 +465,7 @@
         const aCuenta = r2(Math.max(0, num($("#fACuenta").value))); const saldo = r2(total - aCuenta);
         const pctMin = num(EMP.anticipo_min);
         if (!id && pctMin > 0 && total > 0 && aCuenta + 0.005 < r2(total * pctMin / 100) && !confirm("El anticipo (Bs " + aCuenta.toFixed(2) + ") es menor al mínimo de " + pctMin + "% (Bs " + r2(total * pctMin / 100).toFixed(2) + ").\n¿Guardar de todas formas?")) { btn.disabled = false; btn.textContent = "Guardar"; return; }
-        rec = Object.assign(base, { nitci: $("#fNit").value.trim(), factura: $("#fFactura").value, forma_pago: $("#fForma").value, fecha_entrega: $("#fEntrega").value || null, nro_factura: $("#fFactura").value === "CON FACTURA" ? $("#fNroFac").value.trim() || null : null, fecha_factura: $("#fFactura").value === "CON FACTURA" ? $("#fFecFac").value || null : null, direccion_instalacion: $("#fDirInst").value.trim() || null, observaciones: $("#fObs").value.trim(), a_cuenta: aCuenta, saldo, pagado_total: total > 0 && saldo <= 0, validez: old ? old.validez : (prefill && prefill.validez) || null });
+        rec = Object.assign(base, { nitci: $("#fNit").value.trim(), factura: $("#fFactura").value, forma_pago: $("#fForma").value, fecha_entrega: $("#fEntrega").value || null, nro_factura: $("#fFactura").value === "CON FACTURA" ? $("#fNroFac").value.trim() || null : null, fecha_factura: $("#fFactura").value === "CON FACTURA" ? $("#fFecFac").value || null : null, direccion_instalacion: $("#fDirInst").value.trim() || null, responsable: $("#fResp").value.trim() || null, observaciones: $("#fObs").value.trim(), a_cuenta: aCuenta, saldo, pagado_total: total > 0 && saldo <= 0, validez: old ? old.validez : (prefill && prefill.validez) || null });
       } else {
         rec = Object.assign(base, { validez: $("#fValidez").value.trim(), entrega: $("#fEntregaTxt").value.trim() });
       }
@@ -574,7 +575,7 @@
     const cmpFecha = (a, b) => String(a.fecha_entrega || "9999-99-99").localeCompare(String(b.fecha_entrega || "9999-99-99")) || (a.numero_int || 0) - (b.numero_int || 0);
     const draw = () => {
       const q = norm(u.q);
-      const base = S.notas.filter((n) => !q || norm([n.numero, n.cliente, n.telefono, items(n).map((i) => i.detalle).join(" ")].join(" ")).includes(q));
+      const base = S.notas.filter((n) => !q || norm([n.numero, n.cliente, n.telefono, n.responsable, items(n).map((i) => i.detalle).join(" ")].join(" ")).includes(q));
       $("#chips").innerHTML = FILTROS.map((f) => '<button class="chip' + (u.filtro === f.id ? " on" : "") + (f.id === "atrasado" ? " warn" : "") + '" data-act="prod-f" data-f="' + f.id + '">' + f.label + " <b>" + base.filter(f.fn).length + "</b></button>").join("");
       const f = FILTROS.find((x) => x.id === u.filtro) || FILTROS[0];
       const cmpCreado = (a, b) => String(b.created_at || "").localeCompare(String(a.created_at || ""));
@@ -583,7 +584,7 @@
       const total = rows.length; rows = rows.slice(0, LIMITE);
       $("#prodHost").innerHTML = total ? '<div class="pgrid">' + rows.map((n) => {
         const i = ESTADOS.findIndex((e) => e.id === (n.estado_produccion || "pendiente"));
-        return '<div class="kcard' + (isLate(n) ? " late-card" : "") + '"><div class="kc-top"><span class="t-id">' + esc(n.numero) + '</span><span class="' + (isLate(n) ? "late" : "t-sub") + '">' + (isLate(n) ? "Atrasada · " : "Entrega ") + fmtISO(n.fecha_entrega) + '</span></div><div class="kc-cli">' + esc(n.cliente) + '</div><div class="kc-meta">' + esc(items(n).map((x) => x.detalle).join(" · ").slice(0, 110)) + '</div><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:6px"><span>' + pillEstado(n.estado_produccion) + " " + pillPago(n) + "</span><b>" + money(n.total) + '</b></div><div class="kc-btns">' +
+        return '<div class="kcard' + (isLate(n) ? " late-card" : "") + '"><div class="kc-top"><span class="t-id">' + esc(n.numero) + '</span><span class="' + (isLate(n) ? "late" : "t-sub") + '">' + (isLate(n) ? "Atrasada · " : "Entrega ") + fmtISO(n.fecha_entrega) + '</span></div><div class="kc-cli">' + esc(n.cliente) + '</div>' + (n.responsable ? '<div class="kc-resp">Responsable: <b>' + esc(n.responsable) + "</b></div>" : "") + '<div class="kc-meta">' + esc(items(n).map((x) => x.detalle).join(" · ").slice(0, 110)) + '</div><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:6px"><span>' + pillEstado(n.estado_produccion) + " " + pillPago(n) + "</span><b>" + money(n.total) + '</b></div><div class="kc-btns">' +
           (i > 0 ? '<button class="btn" data-act="mv" data-id="' + n.id + '" data-to="' + ESTADOS[i - 1].id + '" title="Mover a ' + ESTADOS[i - 1].label + '">‹</button>' : "") + '<button class="btn" data-act="view-nota" data-id="' + n.id + '">Ver</button>' + (i < 3 ? '<button class="btn btn-primary" data-act="mv" data-id="' + n.id + '" data-to="' + ESTADOS[i + 1].id + '" title="Mover a ' + ESTADOS[i + 1].label + '">› ' + ESTADOS[i + 1].label + "</button>" : "") + "</div></div>";
       }).join("") + "</div>" + (total > LIMITE ? '<div class="t-sub" style="text-align:center;margin-top:16px">Mostrando las primeras ' + LIMITE + " de " + total + ". El resto sigue guardado en la base de datos; búscalo con el buscador o en Notas de venta.</div>" : "") : '<div class="table-wrap"><div class="empty">No hay notas en esta vista.</div></div>';
     };
