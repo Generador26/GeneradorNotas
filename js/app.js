@@ -2,7 +2,7 @@
 (function () {
   "use strict";
   const CFG = window.SEVEN_CONFIG;
-  const APP_VERSION = "2026-10-04 g";
+  const APP_VERSION = "2026-10-04 h";
   const $ = (s, r) => (r || document).querySelector(s);
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 
@@ -45,7 +45,23 @@
   const norm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
   const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
 
-  function toast(msg, kind) {
+  /* ---------- sonidos (generados en el navegador, sin archivos) ---------- */
+  let AC = null, lastLocal = 0;
+  const soundOn = () => { try { return localStorage.getItem("seven-sound") !== "off"; } catch (e) { return true; } };
+  function play(name) {
+    if (!soundOn()) return;
+    try {
+      AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === "suspended") AC.resume();
+      const T = { click: [[900, 0, .03, "sine", .035]], ok: [[660, 0, .09, "sine", .08], [880, .09, .14, "sine", .08]], err: [[220, 0, .16, "square", .05], [165, .17, .22, "square", .05]],
+        notif: [[1175, 0, .12, "sine", .07], [880, .12, .2, "sine", .06]], login: [[523, 0, .1, "sine", .08], [659, .1, .1, "sine", .08], [784, .2, .2, "sine", .08]], logout: [[784, 0, .1, "sine", .07], [523, .1, .2, "sine", .07]],
+        entregado: [[523, 0, .12, "triangle", .1], [659, .12, .12, "triangle", .1], [784, .24, .12, "triangle", .1], [1047, .36, .35, "triangle", .11], [784, .36, .35, "sine", .05]] }[name];
+      if (!T) return;
+      const t0 = AC.currentTime;
+      T.forEach(([f, d, dur, type, vol]) => { const o = AC.createOscillator(), g = AC.createGain(); o.type = type; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t0 + d); g.gain.exponentialRampToValueAtTime(vol, t0 + d + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t0 + d + dur); o.connect(g); g.connect(AC.destination); o.start(t0 + d); o.stop(t0 + d + dur + 0.02); });
+    } catch (e) {}
+  }
+  function toast(msg, kind, snd) {
+    lastLocal = Date.now(); play(snd || (kind === "err" ? "err" : kind === "ok" ? "ok" : ""));
     const el = document.createElement("div");
     el.className = "toast " + (kind || "");
     el.textContent = msg;
@@ -140,7 +156,7 @@
   async function logout(motivo) {
     const u = S.user;
     if (u) { await logAcceso(motivo === "cierre_por_inactividad" ? "cierre_por_inactividad" : "logout", null, u.usuario); try { await sb.rpc("logout_sesion"); } catch (e) {} }
-    TOKEN = ""; S.resp = null;
+    play("logout"); TOKEN = ""; S.resp = null;
     S.user = null; S.loaded = false;
     try { sessionStorage.removeItem("seven-user"); } catch (e) {}
     stopRealtime();
@@ -171,7 +187,7 @@
     stopRealtime();
     const reload = debounce(async () => {
       if (!navigator.onLine) return;
-      try { await loadData(); if (!$("#modal").hidden) { S.pendingRefresh = true; } else renderView(true); } catch (e) {}
+      try { await loadData(); if (Date.now() - lastLocal > 4000) play("notif"); if (!$("#modal").hidden) { S.pendingRefresh = true; } else renderView(true); } catch (e) {}
     }, 500);
     S.reload = reload;
     rt = sb.channel("seven-rt-" + Date.now())
@@ -555,7 +571,7 @@
       if (error) return toast("No se pudo registrar: " + errMsg(error), "err");
       await logAcceso("pago_saldo", ["Nº " + n.numero, m.toFixed(2), met, n.cliente, n.id].join(" | "));
       if (entregar) await logAcceso("estado_entregado", "Nº " + n.numero);
-      closeModal(); toast(entregar ? "Pago registrado y nota entregada." : "Pago registrado.", "ok"); await loadData(); renderView();
+      closeModal(); toast(entregar ? "Pago registrado y nota entregada." : "Pago registrado.", "ok", entregar ? "entregado" : "ok"); await loadData(); renderView();
     });
   }
   async function setEstado(id, estado) {
@@ -565,7 +581,7 @@
     if (error) return toast("No se pudo cambiar el estado: " + errMsg(error), "err");
     const n = getNota(id); if (n) n.estado_produccion = estado;
     await logAcceso("estado_" + estado, "Nº " + (n ? n.numero : ""));
-    toast("Estado: " + estadoOf(estado).label, "ok"); renderView(); if (!$("#modal").hidden && n) viewNota(id);
+    toast("Estado: " + estadoOf(estado).label, "ok", estado === "entregado" ? "entregado" : "ok"); renderView(); if (!$("#modal").hidden && n) viewNota(id);
   }
   async function deleteDoc(kind, id) {
     const r = kind === "nota" ? getNota(id) : getCot(id); if (!r) return;
@@ -1122,12 +1138,16 @@
   $("#scrim").addEventListener("click", () => { $("#sidebar").classList.remove("open"); $("#scrim").hidden = true; });
   $("#userChip").addEventListener("click", () => { const d = $("#userDropdown"); d.hidden = !d.hidden; $("#userChip").setAttribute("aria-expanded", String(!d.hidden)); });
   $("#logoutBtn").addEventListener("click", () => logout());
+  document.addEventListener("click", (e) => { if (e.target.closest("button, .chip, .nav-btn, a.btn")) play("click"); }, true);
+  const pintaSonido = () => { const b = $("#soundBtn"); if (b) b.textContent = soundOn() ? "🔊 Sonido: activado" : "🔇 Sonido: desactivado"; };
+  pintaSonido();
+  $("#soundBtn").addEventListener("click", () => { try { localStorage.setItem("seven-sound", soundOn() ? "off" : "on"); } catch (e) {} pintaSonido(); if (soundOn()) play("ok"); });
   $("#changePassBtn").addEventListener("click", () => { $("#userDropdown").hidden = true; changePass(); });
   $("#loginForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const usr = $("#uUser").value.trim(), pw = $("#uPass").value; if (!usr || !pw) return;
     const btn = $("#loginBtn"), err = $("#loginError"); btn.disabled = true; btn.textContent = "Verificando…"; err.hidden = true;
-    try { S.user = await doLogin(usr, pw); saveSession(); await enterApp(); }
+    try { S.user = await doLogin(usr, pw); saveSession(); play("login"); await enterApp(); }
     catch (ex) { err.textContent = errMsg(ex); err.hidden = false; }
     btn.disabled = false; btn.textContent = "Ingresar";
   });
@@ -1142,7 +1162,7 @@
       if (S.user) { startRealtime(); if (S.reload) S.reload(); toast("Conexión restablecida. Datos actualizados.", "ok"); }
     }
   }
-  window.addEventListener("offline", () => setOffline(true));
+  window.addEventListener("offline", () => { play("err"); setOffline(true); });
   window.addEventListener("online", () => setOffline(false));
   async function pingNet() {
     if (!navigator.onLine) return setOffline(true);
