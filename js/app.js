@@ -2,7 +2,7 @@
 (function () {
   "use strict";
   const CFG = window.SEVEN_CONFIG;
-  const APP_VERSION = "2026-10-03 k";
+  const APP_VERSION = "2026-10-04 a";
   const $ = (s, r) => (r || document).querySelector(s);
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 
@@ -10,7 +10,14 @@
     document.body.innerHTML = '<p style="padding:30px">No se pudo cargar la librería de conexión. Recarga la página.</p>';
     return;
   }
+  let TOKEN = "";
+  // el token de sesión viaja en una cabecera permitida; la base de datos lo valida en cada petición
+  const fetchSeguro = (url, opts) => {
+    if (TOKEN) { const h = new Headers((opts && opts.headers) || {}); h.set("X-Client-Info", (h.get("X-Client-Info") || "web") + " seven:" + TOKEN); opts = Object.assign({}, opts, { headers: h }); }
+    return fetch(url, opts);
+  };
   const sb = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey, {
+    global: { fetch: fetchSeguro },
     auth: { persistSession: false, autoRefreshToken: false },
     realtime: { params: { eventsPerSecond: 5 } }
   });
@@ -115,33 +122,12 @@
   function loadSession() { try { return JSON.parse(sessionStorage.getItem("seven-user") || "null"); } catch (e) { return null; } }
 
   async function doLogin(usuario, password) {
-    usuario = String(usuario || "").trim();
-    // el nombre de usuario se resuelve sin distinguir mayúsculas/minúsculas
-    const like = usuario.replace(/[\\%_]/g, (c) => "\\" + c);
-    const { data: cands, error: e0 } = await sb.from("usuarios").select("id,usuario,nombre,rol,activo,bloqueado,intentos_fallidos").ilike("usuario", like);
-    if (e0) throw new Error("No se pudo consultar usuarios: " + errMsg(e0));
-    const list = cands || [];
-    const u = list.find((x) => x.usuario === usuario) || (list.length === 1 ? list[0] : null);
-    const real = u ? u.usuario : usuario;
-    const { data, error } = await sb.rpc("login_usuario", { p_usuario: real, p_password: password });
+    const { data, error } = await sb.rpc("login_usuario", { p_usuario: String(usuario || "").trim(), p_password: password });
     if (error) throw new Error("Error de conexión con la base: " + errMsg(error));
     const row = Array.isArray(data) ? data[0] : data;
-    if (row && row.ok && u) {
-      if (u.intentos_fallidos) await sb.from("usuarios").update({ intentos_fallidos: 0 }).eq("id", u.id);
-      return { usuario: u.usuario, nombre: u.nombre || u.usuario, rol: u.rol || "editor", id: u.id };
-    }
-    if (u && u.bloqueado) throw new Error("Cuenta bloqueada. Contacta al administrador.");
-    if (u && u.activo === false) throw new Error("Usuario desactivado. Contacta al administrador.");
-    if (u) {
-      const n = (u.intentos_fallidos || 0) + 1;
-      const patch = { intentos_fallidos: n };
-      if (n >= CFG.maxIntentos) { patch.bloqueado = true; patch.activo = false; }
-      await sb.from("usuarios").update(patch).eq("id", u.id);
-      await logAcceso("login_fallido", "intento " + n, usuario);
-      if (n >= CFG.maxIntentos) throw new Error("Demasiados intentos. La cuenta fue bloqueada.");
-      throw new Error("Usuario o contraseña incorrectos. Intentos restantes: " + (CFG.maxIntentos - n));
-    }
-    throw new Error("Usuario o contraseña incorrectos.");
+    if (!row || !row.ok) throw new Error((row && row.msg) || "Usuario o contraseña incorrectos.");
+    TOKEN = row.token;
+    return { usuario: row.usuario, nombre: row.nombre || row.usuario, rol: row.rol || "editor", id: row.id, token: row.token };
   }
 
   let idleTimer = null;
@@ -154,7 +140,8 @@
 
   async function logout(motivo) {
     const u = S.user;
-    if (u) await logAcceso(motivo === "cierre_por_inactividad" ? "cierre_por_inactividad" : "logout", null, u.usuario);
+    if (u) { await logAcceso(motivo === "cierre_por_inactividad" ? "cierre_por_inactividad" : "logout", null, u.usuario); try { await sb.rpc("logout_sesion"); } catch (e) {} }
+    TOKEN = "";
     S.user = null; S.loaded = false;
     try { sessionStorage.removeItem("seven-user"); } catch (e) {}
     stopRealtime();
@@ -191,8 +178,6 @@
     rt = sb.channel("seven-rt-" + Date.now())
       .on("postgres_changes", { event: "*", schema: "public", table: "notas" }, reload)
       .on("postgres_changes", { event: "*", schema: "public", table: "cotizaciones" }, reload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "accesos" }, reload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "usuarios" }, reload)
       .subscribe((st) => {
         const chip = $("#liveChip"); if (!chip) return;
         const on = st === "SUBSCRIBED";
@@ -249,7 +234,6 @@
   }
   function isLate(n) { return n.estado_produccion !== "entregado" && n.fecha_entrega && n.fecha_entrega < hoyISO(); }
 
-  const pillEstadoText = (id) => estadoOf(id).label;
   function kpi(l, v, s, cls) { return '<div class="card kpi ' + (cls || "") + '"><div class="k-lbl">' + l + '</div><div class="k-val">' + v + '</div><div class="k-sub">' + s + "</div></div>"; }
   function chartOpts(extra) {
     return Object.assign({ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => " " + money(c.parsed.y != null && c.chart.config.options.indexAxis !== "y" ? c.parsed.y : c.parsed.x != null ? c.parsed.x : c.parsed) } } },
@@ -738,7 +722,7 @@
   let usersCache = [];
   async function vUsers() {
     content().innerHTML = '<div class="toolbar"><button class="btn btn-primary" data-act="new-user">+ Nuevo usuario</button></div><div id="listHost"><div class="empty">Cargando…</div></div>';
-    const { data, error } = await sb.from("usuarios").select("id,usuario,nombre,rol,activo,bloqueado,intentos_fallidos,created_at").order("created_at");
+    const { data, error } = await sb.rpc("listar_usuarios");
     if (error) return ($("#listHost").innerHTML = '<div class="empty">' + esc(errMsg(error)) + "</div>");
     usersCache = data || [];
     $("#listHost").innerHTML = '<div class="table-wrap"><table><thead><tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Estado</th><th></th></tr></thead><tbody>' + usersCache.map((x) =>
@@ -754,18 +738,16 @@
       e.preventDefault();
       const nombre = $("#xNombre").value.trim(), rol = $("#xRol").value, pass = $("#xPass").value;
       try {
+        let r;
         if (x) {
-          const act = $("#xActivo").checked; const patch = { nombre, rol, activo: act };
-          if (act) { patch.bloqueado = false; patch.intentos_fallidos = 0; }
-          if (pass) patch.password = pass;
-          const { error } = await sb.from("usuarios").update(patch).eq("id", x.id); if (error) throw error;
+          r = await sb.rpc("guardar_usuario", { p_id: x.id, p_usuario: x.usuario, p_nombre: nombre, p_rol: rol, p_activo: $("#xActivo").checked, p_password: pass || null });
         } else {
           const usr = $("#xUser").value.trim();
           if (!usr || pass.length < 6) return toast("Usuario y contraseña (mín. 6 caracteres) son obligatorios.", "err");
-          const { data, error } = await sb.rpc("registrar_usuario", { p_usuario: usr, p_password: pass, p_nombre: nombre });
-          if (error) throw error; if (data === false) return toast("Ese usuario ya existe.", "err");
-          const { error: e2 } = await sb.from("usuarios").update({ rol }).eq("usuario", usr); if (e2) throw e2;
+          r = await sb.rpc("guardar_usuario", { p_id: null, p_usuario: usr, p_nombre: nombre, p_rol: rol, p_activo: true, p_password: pass });
         }
+        if (r.error) throw r.error;
+        if (r.data !== "ok") return toast(r.data || "No se pudo guardar.", "err");
         await logAcceso("usuario_" + (x ? "editado" : "creado"), x ? x.usuario : $("#xUser").value);
         closeModal(); toast("Usuario guardado.", "ok"); vUsers();
       } catch (er) { toast(errMsg(er), "err"); }
@@ -995,12 +977,10 @@
     $("#cpForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const nu = $("#cpNew").value; if (nu.length < 6) return toast("Mínimo 6 caracteres.", "err");
-      const { data, error } = await sb.rpc("login_usuario", { p_usuario: S.user.usuario, p_password: $("#cpOld").value });
-      const ok = !error && (Array.isArray(data) ? data[0] : data) && (Array.isArray(data) ? data[0] : data).ok;
-      if (!ok) return toast("La contraseña actual no es correcta.", "err");
-      const { error: e2 } = await sb.from("usuarios").update({ password: nu }).eq("id", S.user.id);
-      if (e2) return toast(errMsg(e2), "err");
-      await logAcceso("cambio_password"); closeModal(); toast("Contraseña actualizada.", "ok");
+      const { data, error } = await sb.rpc("cambiar_password", { p_actual: $("#cpOld").value, p_nueva: nu });
+      if (error) return toast(errMsg(error), "err");
+      if (data !== true) return toast("La contraseña actual no es correcta.", "err");
+      closeModal(); toast("Contraseña actualizada.", "ok");
     });
   }
 
@@ -1052,7 +1032,7 @@
     e.preventDefault();
     const usr = $("#uUser").value.trim(), pw = $("#uPass").value; if (!usr || !pw) return;
     const btn = $("#loginBtn"), err = $("#loginError"); btn.disabled = true; btn.textContent = "Verificando…"; err.hidden = true;
-    try { S.user = await doLogin(usr, pw); saveSession(); await logAcceso("login"); await enterApp(); }
+    try { S.user = await doLogin(usr, pw); saveSession(); await enterApp(); }
     catch (ex) { err.textContent = errMsg(ex); err.hidden = false; }
     btn.disabled = false; btn.textContent = "Ingresar";
   });
@@ -1084,6 +1064,10 @@
   (async function init() {
     await loadEmpresa();
     const s = loadSession();
-    if (s && s.usuario) { S.user = s; await enterApp(); } else showLogin("");
+    if (s && s.usuario && s.token) {
+      TOKEN = s.token;
+      let rol = null; try { const r = await sb.rpc("sesion_rol"); rol = r.data; } catch (e) {}
+      if (rol) { S.user = s; await enterApp(); } else { TOKEN = ""; try { sessionStorage.removeItem("seven-user"); } catch (e) {} showLogin("La sesión expiró. Ingresa de nuevo."); }
+    } else showLogin("");
   })();
 })();
