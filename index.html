@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https://nphlvrbbgnlexkzvzmwa.supabase.co; connect-src 'self' blob: https://nphlvrbbgnlexkzvzmwa.supabase.co wss://nphlvrbbgnlexkzvzmwa.supabase.co; worker-src 'self' blob:; frame-src 'self' blob:; base-uri 'self'; form-action 'self'; object-src 'none'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#06323b">
+<title>Gigantografía Seven — CRM</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preload" href="img/logo-seven.png" as="image">
+<link rel="preload" href="fonts/archivo-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/ibm-plex-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/app.css?v=20261004i">
+</head>
+<body>
+<div id="boot" class="boot"><img src="img/logo-seven.png" alt="Gigantografía Seven" width="160" height="160"><div class="spinner"></div></div>
+
+<div id="login-view" hidden>
+  <div class="brand-pane">
+    <div class="brush b1"></div><div class="brush b2"></div><div class="brush b3"></div>
+    <img class="login-logo" src="img/logo-seven.png" alt="Gigantografía Seven — Si lo imaginas es real" width="420" height="420">
+  </div>
+  <div class="form-pane">
+    <div class="login-card">
+      <h1>Iniciar sesión</h1>
+      <p class="sub">Sistema de notas de venta, cotizaciones y producción.</p>
+      <div class="login-error" id="loginError" role="alert" hidden></div>
+      <form id="loginForm" autocomplete="on" novalidate>
+        <div class="field"><label for="uUser">Usuario</label>
+          <input id="uUser" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required></div>
+        <div class="field"><label for="uPass">Contraseña</label>
+          <div class="pw-wrap"><input id="uPass" name="password" type="password" autocomplete="current-password" required><button type="button" id="pwToggle" class="pw-eye" aria-label="Mostrar contraseña" title="Mostrar contraseña"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/><path class="slash" d="M3 3l18 18" style="display:none"/></svg></button></div></div>
+        <button class="btn btn-primary btn-block" id="loginBtn" type="submit">Ingresar</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div id="app-view" hidden>
+  <div class="shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="side-brand"><img src="img/logo-seven.png" alt="Gigantografía Seven" width="120" height="120"></div>
+      <nav class="side-nav" id="sideNav" aria-label="Módulos"></nav>
+      <div class="side-foot" id="sideFoot"></div>
+    </aside>
+    <div class="scrim" id="scrim" hidden></div>
+    <div class="main">
+      <header class="topbar">
+        <button class="icon-btn menu-btn" id="menuBtn" aria-label="Menú"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+        <h2 id="panelTitle">—</h2>
+        <div class="topbar-right">
+          <div class="live-chip" id="liveChip" data-state="off"><span class="dot"></span><span class="txt">Conectando…</span></div>
+          <div class="user-menu">
+            <button class="user-chip" id="userChip" aria-haspopup="true" aria-expanded="false"><span class="av" id="userAv">·</span><span class="nm" id="userName">—</span></button>
+            <div class="user-dropdown" id="userDropdown" hidden>
+              <button id="soundBtn">Sonido</button>
+              <button id="changePassBtn">Cambiar mi contraseña</button>
+              <div class="sep"></div>
+              <button id="logoutBtn" class="danger">Cerrar sesión</button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="content" id="content"></main>
+    </div>
+  </div>
+</div>
+
+<div id="offlineOverlay" class="offline-overlay" hidden><div class="offline-box"><div class="offline-ico">&#128268;</div><h2>SIN CONEXIÓN A INTERNET</h2><p>No hay conexión. El sistema funciona en tiempo real y necesita internet para guardar y mostrar datos.<br>Se reanudará automáticamente al volver la conexión.</p></div></div>
+<div class="modal-overlay" id="modal" hidden>
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <div class="modal-head"><h3 id="modalTitle">—</h3><button class="modal-close" id="modalClose" aria-label="Cerrar">×</button></div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+<div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
+<script src="vendor/supabase.js"></script>
+<script src="vendor/jspdf.umd.min.js"></script>
+<script src="vendor/chart.umd.js"></script>
+<script src="vendor/xlsx.mini.min.js"></script>
+<script src="js/config.js?v=20261004i"></script>
+<script src="js/app.js?v=20261118b"></script>
+</body>
+</html>
